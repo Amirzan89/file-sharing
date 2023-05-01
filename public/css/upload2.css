@@ -1,0 +1,204 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200&display=swap');
+*{
+    margin:0;
+    padding:0;
+    box-sizing: border-box;
+    font-family: "Poppins",sans-serif;
+}
+body{
+    display:flex;
+    align-items: center;
+    justify-content: center;
+    /* background-repeat: no-repeat; */
+    background: url('../images/backgroundLogin.jpeg');
+    background-position: center;
+    height: 100vh;
+    background-size: cover;
+}
+.wrapper{
+    background: rgba(255,255,255,0.2);
+    width: 450px;
+    position: absolute;
+    /* height:300px; */
+    /* padding:30px; */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 5px;
+}
+.wrapper header{
+    color: #6900f2;
+    font-size:27px;
+    font-weight: 600;
+    text-align: center;
+}
+.wrapper form{
+    background: rgba(255,255,255,0.5);
+    width:400px;
+    height: 167px;
+    margin:30px 0;
+    border-radius: 5px;
+    border:3px dashed #6990f2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    cursor: pointer;
+}
+form:where(i,p){
+    color: #6900f2;
+}
+form i{
+    font-size: 50px;
+}
+form p{
+    font-size: 16px;
+    margin-top: 15px;
+}
+section{
+    display: inline;
+}
+section .row{
+    position: relative;
+    width:400px;
+    height: 67px;
+    margin-bottom: 10px;
+    list-style: none;
+    /* padding:15px 20px; */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+section .row i{
+    font-size: 30px;
+}
+section .details span{
+    font-size: 14px;
+}
+.progress-area{
+    max-height: 150px;
+    overflow-y: scroll;
+}
+.progress-area::-webkit-scrollbar{
+    width: 0px;
+}
+.progress-area .row{
+    background:rgba(255,255,255,0.6);
+}
+.progress-area .row .file{
+    position: absolute;
+    top:10px;
+    left:10px;
+}
+.progress-area .row .content{
+    width: 100%;
+    margin-left: 15px;
+}
+.progress-area .details{
+    display: flex;
+    font-weight: 700;
+    align-items: center;
+    justify-content: space-between;
+}
+.progress-area .details .name{
+    position: absolute;
+    top:5px;
+    left:45px;
+}
+.progress-area .details .size{
+    position: absolute;
+    top:25px;
+    left:45px;
+}
+.progress-area .details .percent{
+    position: absolute;
+    bottom:5px;
+    right:5px;
+    font-size: 15px;
+}
+.progress-area .progress-bar{
+    position: absolute;
+    height: 7px;
+    width: 80%;
+    left:10%;
+    bottom: 10px;
+    /* bottom:10px; */
+    background: #fff;
+    /* margin-bottom: 4px; */
+    border-radius: 30px;
+}
+.progress-bar .progress{
+    height: 100%;
+    /* width: 0%; */
+    background: #6990f2;
+    border-radius: inherit;
+}
+.progress-area .row .content .controls{
+    position: absolute;
+    top:0px;
+    right:0px;
+    display: flex;
+    width:60px;
+    align-items: center;
+    justify-content: space-between;
+}
+.progress-area .row .content .controls .fa-play{
+    display:none;
+    position: absolute;
+    top:5px;
+    right:45px;
+    font-size: 28px;
+}
+.progress-area .row .content .controls .fa-pause{
+    display: block;
+    position: absolute;
+    top:5px;
+    right:50px;
+    font-size: 28px;
+}
+.progress-area .row .content .controls .fa-x{
+    /* display:none; */
+    position: absolute;
+    top:5px;
+    right: 10px;
+    font-size: 26px;
+}
+.uploaded-area{
+    max-height: 150px;
+    overflow-y: scroll;
+}
+.uploaded-area::-webkit-scrollbar{
+    width: 0px;
+}
+.uploaded-area .row{
+    background: rgba(255,255,255,1);
+}
+.uploaded-area .row .content{
+    display: flex;
+    align-items: center;
+}
+.uploaded-area .row .content .file{
+    position: absolute;
+    top:10px;
+    left:10px;
+}
+.uploaded-area .row .content .details{
+    display: flex;
+    flex-direction: column;
+    /* margin-left: 15px; */
+}
+.uploaded-area .row .content .details .name{
+    position: absolute;
+    top:5px;
+    left:45px;
+}
+.uploaded-area .row .content .details .size{
+    position: absolute;
+    top:25px;
+    left:45px;
+}
+.uploaded-area .fa-check{
+    position: absolute;
+    right: 10px;
+    font-size: 25px;
+}
