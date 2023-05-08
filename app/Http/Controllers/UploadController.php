@@ -3,7 +3,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
-
+use Closure;
 class uploadController extends Controller
 {
     //max file size in byte
@@ -13,7 +13,6 @@ class uploadController extends Controller
     private $extImage = ['png','jpg','jpeg'];
     private $extPDF = 'pdf';
     private $pathImage  = 'public/image';
-    private $tempFolder = 'img/tmp/';
     private $pathPDF = 'public/pdf';
     private $pathText = 'public/text';
     private $pathProgram = 'public/program';
@@ -22,40 +21,50 @@ class uploadController extends Controller
         $this->maxSize = env('MAX_FILE_SIZE',10*1024*1024);
     }
     public function validateUpload(Request $req,Response $res){
-        if($req->hasFile('myFiles')){
-            $files = $req->file('myFiles');
-            $errorMsg = array();
-            $replaceMsg = array();
-            $idMsg = array();
-            //validate each file
-            foreach($files as $file){
-                $ext = $file->getClientOriginalExtension();
-                $fileName = $file->getClientOriginalName().$ext;
-                //validate size
-                if($file->getSize() > $this->maxSize){
-                    array_push($errorMsg,[
-                    'size-file'=>'File ' . $fileName . ' is too large',
-                    'size'=>$file->getSize()
-                    ]);
+        try{
+            $out = array();
+            // $data = collect($req->json()->all());
+            $data = $req->json()->all();
+            // $data->each(function($item, $key) use(&$out){
+            foreach($data as $item){
+                $size = 0;
+                $id = '';
+                $fileName = '';
+                $ext = '';
+                if(isset($item['name'])){
+                    $fileName = $item['name'];
                 }
-                //validate existing file
-                if(Storage::exists($fileName)){
-                    array_push($replaceMsg,[
-                        'exist-file'=>'File ' . $fileName . ' is exist',
-                    ]);
+                if(isset($item['id'])){
+                    $id = $item['id'];
+                }
+                if(isset($item['size'])){
+                    $size = $item['size'];
+                }
+                if(isset($item['ext'])){
+                    $ext = $item['ext'];
+                }
+                // $id = $item->get('id');
+                // $fileName = $item->get('name');
+                // $ext = $item->get('ext');
+                // $size = $item->get('size');
+                // $id = $item->value('id');
+                // $fileName = $item->value('name');
+                // $ext = $item->value('ext');
+                // $size = $item->value('size');
+                //if file exist
+                // if(Storage::exists($fileName)){
+                //     array_push($out,['id'=>$id,'status'=>'File is exist']);
+                // }
+                if($size > $this->maxSize){
+                    array_push($out,['id'=>$id,'status'=>'File is to large']);
                 }else{
-                    array_push($idMsg,[
-                    'id-file'=>uniqid().'-'.time()]);
+                    array_push($out,['id'=>$id,'status'=>'File is ok']);
                 }
             }
-            // Check the results after the foreach loop completes
-            if(!empty($errorMsg)){
-                return response()->json(['status'=>'error','data' => $errorMsg], 413);
-            }else if(!empty($replaceMsg)){
-                return response()->json(['status'=>'success','data'=>$replaceMsg],200);
-            }else{
-                return response()->json(['status'=>'success','data'=>$idMsg],200);
-            }
+            // });
+            return response()->json($out,200);
+        }catch(\Exception $err){
+            return response()->json(['error' => $err->getMessage()], 500);
         }
     }
     public function upload(Request $req, Response $res){

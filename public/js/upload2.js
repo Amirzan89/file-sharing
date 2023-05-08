@@ -48,10 +48,22 @@ rows.forEach((row) => {
 form.addEventListener("click", () => {
     fileInput.click();
 });
-function validateUpload(Form) {
-    // Send file to server
+function validateUpload(form) {
+    const dataFile = [];
+    const files = form.files;
+    for(let i = 0; i < files.length; i++){
+        dataFile.push(
+            {'id':i+1},
+            {'name':files[i].name},
+            {'ext':files[i].name.split('.').pop()},
+            {'size':files[i].size}
+        );
+    }
+    // verify file to server
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/users/validate/upload");
+    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    // xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken);
     xhr.onload = () => {
         response = xhr.responseText;
         console.log(response.body);
@@ -61,11 +73,10 @@ function validateUpload(Form) {
             throw response.body;
         }
     };
-    const formData = new FormData(Form);
-    xhr.send(formData);
+    xhr.send(JSON.stringify(dataFile));
 }
 
-function uploadData(Form, file,id) {
+function uploadData(Form, file) {
     // Send file to server
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/users/upload");
@@ -80,7 +91,7 @@ function uploadData(Form, file,id) {
         }
         const percent = Math.floor((event.loaded / event.total) * 100);
         console.log("percent " + percent + "%");
-        let progressHtml = ` <li class="row" id=${id}>
+        let progressHtml = ` <li class="row" id='terserah'>
                 <i class="fas fa-file-alt file"></i>
                 <div class="content">
                     <div class="details">
@@ -135,7 +146,6 @@ function uploadData(Form, file,id) {
             if (xhr.status === 200) {
                 console.log();
                 alert("File uploaded successfully");
-
             } else {
                 throw "File upload failed";
             }
@@ -164,18 +174,27 @@ function uploadData(Form, file,id) {
         },
     };
 }
+// const resData = validateUpload(form);
+// console.log('files '+resData.data);
+// console.log('id files'+resData.data.data.id);
 fileInput.addEventListener('change',(event)=>{
-    event.preventDefault();
-    console.log(fileInput.files);
-    const resData = validateUpload(form);
-    console.log('id files'+resData.data.data.id);
-    // let uploads = [];
-    // fileInput.files.forEach((file) => {
-    //     const upload = uploadData(form, file, resData.data.data.id);
-    //     uploads.push(upload);
-    // });
-        // console.log(uploads);
+    try {
+        event.preventDefault();
+        const res = validateUpload(fileInput);
+        // files = fileInput.files;
+        // for(let i = 0; i < files.length; i++){
+        //     console.log("data ke "+i);
+        //     console.log(files[i]);
+        //     console.log("size file "+files[i].size)
+        //     console.log("nama file "+files[i].name)
+        //     console.log("ext "+files[i].name.split('.').pop())
+        //     console.log();
+        // }
+    } catch (error) {
+        console.log("error "+error);
+    }
 })
+// console.log(uploads);
 // fileInput.addEventListener("change", () => {
 //     try{
 //         const formData = new FormData(pond('form'));

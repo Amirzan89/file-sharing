@@ -34,6 +34,8 @@ Route::get('/login',function(){
 Route::post('/users/validate/upload', 'UploadController@validateUpload');
 Route::post('/pond/upload','UploadController@uploadPond');
 Route::post('/users/upload','UploadController@upload');
+Route::post('/users/validate/download','DownloadController@validateDownload');
+Route::get('/users/download','DownloadController@download');
 Route::group(['middleware'=>'auth'],function(){
     Route::post('/logout',function(){
         // return view('login');
