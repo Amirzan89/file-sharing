@@ -14,6 +14,9 @@
 <body>
     @csrf
     <div class="bg-img">
+        <img src="{{asset('images/backgroundLogin.jpeg')}}" alt="">
+    </div>
+    <div>
         <div class="content">
             <header>Login Form</header>
             <form action="<?php echo $link."/login-form"; ?>" method="post">

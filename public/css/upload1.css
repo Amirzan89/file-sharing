@@ -2,34 +2,36 @@
 *{
     margin:0;
     padding:0;
-    box-sizing: border-box;
+    /* box-sizing: border-box; */
     font-family: "Poppins",sans-serif;
 }
 body{
-    display:flex;
+    max-height: 100vh;
+    /* display:flex;
     align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    background: #fff;
+    justify-content: center; */
+    /* min-height: 100vh; */
+    /* background: #fff; */
 }
-.bg-img{
+div.bg-img img{
     position: absolute;
     width: 100%;
     height: 100vh;
-    left: 0px;
-    top: -5px;
-    background: url('../images/background.jpg');
-    /* background-position: center;
-    background-size: cover; */
+    object-fit:cover;
 }
 .wrapper{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
     width: 430px;
     padding:30px;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 5px;
 }
 .wrapper header{
     color: #6900f2;
+    color: black;
     font-size:27px;
     font-weight: 600;
     text-align: center;
@@ -62,15 +64,19 @@ form p{
 }
 section .row{
     background: #e9f0ff;
-    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    /* background: #cfddfa; */
+    height: 50px;
     list-style: none;
-    padding:15px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: 10px;
+    border-radius: 5px;
 }
 section .row i{
-    font-size: 30px;
+    /* left:2%; */
+    font-size: 25px;
     color:#6900f2;
 }
 section .details span{
@@ -79,44 +85,76 @@ section .details span{
 .progress-area{
     max-height: 150px;
     overflow-y: scroll;
+    margin-bottom: 10px;
 }
 .progress-area::-webkit-scrollbar{
     width: 0px;
 }
-.progress-area .row .content{
+.progress-area .row, .uploaded-area .row{
+    position: relative;
     width: 100%;
-    margin-left: 15px;
+    display: flex;
+    flex-direction: row; 
 }
-.progress-area .details{
+.progress-area .row .content{
+    position: relative;
     display: flex;
     align-items: center;
-    margin-bottom: 7px;
-    justify-content: space-between;
-}
-.progress-area .progress-bar{
-    height: 6px;
     width: 100%;
-    background: #fff;
-    margin-bottom: 4px;
-    border-radius: 30px;
-}
-.progress-bar .progress{
     height: 100%;
-    /* width: 0%; */
-    background: #6990f2;
+}
+.progress-area .row .content i{
+    position: relative;
+    left:2%; 
+}
+.progress-area .row .content .details .name{
+    position: absolute;
+    font-size: 14px;
+    top:3%;
+    left:10%;
+    font-weight: 570;
+}
+.progress-area .row .content .details .size{
+    font-size: 14px;
+    position: absolute;
+    bottom:20%;
+    left:10%;
+    font-weight: 600;
+}
+.progress-area .row .content .details .percent{
+    position: absolute;
+    right: 1%;
+    bottom: 2%;
+    font-weight: 800;
+}
+.progress-area .row .content .progress-bar{
+    position: absolute;
+    left:10%;
+    bottom:10%;
+    height: 6px;
+    width: 80%;
+    background: rgba(105, 144, 242,0.3);
+    /* background-color: black; */
+    /* margin-bottom: 4px; */
+    border-radius: 30px;
+    overflow: hidden;
+}
+.progress-area .row .content .progress-bar .progress{
+    height: 100%;
+    width: 90%;
+    background: rgb(105, 144, 242);
     border-radius: inherit;
 }
 .progress-area .row .content .controls{
-    display: flex;
-    width:60px;
-    align-items: center;
-    justify-content: space-between;
-    right:0px;
-    border:3px solid black;
+    position: absolute;
+    top:7%; 
+    right:3%;
 }
-.progress-area .row .content .controls .fa-play{
-    display:none;
-}
+.progress-area .row .content .controls [class*="fa-"]{
+    position: relative;
+    font-size: 20px;
+} 
+
 .uploaded-area{
     max-height: 150px;
     overflow-y: scroll;
@@ -125,19 +163,46 @@ section .details span{
     width: 0px;
 }
 .uploaded-area .row .content{
+    position: relative;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%;
 }
 .uploaded-area .row .details{
     display: flex;
     flex-direction: column;
-    margin-left: 15px;
+    /* margin-left: 15px; */
 }
-.uploaded-area .details .size{
+.uploaded-area .row .content .details .name{
+    position: absolute;
+    font-weight: 600;
+    top:0;
+    left:10%;
+}
+.uploaded-area .row .content .details .size{
+    position: absolute;
+    font-weight: 600;
+    left: 10%;
+    bottom: 10%;
+}
+
+/* .uploaded-area .details .size{
     font-size: 11px;
     color: #404040;
+} */
+.uploaded-area .row .content i{
+    position: relative;
+    left:2%; 
 }
-.uploaded-area .fa-check{
+.uploaded-area .row .content .controls{
+    position: absolute;
+    right:3%;
+}
+.uploaded-area .row .content .controls .fa-check{
+    position: relative;
+    right: 0;
     font-size: 16px;
     color: #6900f2;
 }

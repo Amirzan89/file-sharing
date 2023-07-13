@@ -13,6 +13,9 @@
     <link href="https://unpkg.com/filepond@^4/dist/filepond.css" rel="stylesheet" />
 </head>
 <body>
+    <div class="bg-img">
+        <img src="{{asset('images/background.jpg')}}" alt="">
+    </div>
     <div class="wrapper">
         <header>File Uploader Laravel</header>
         <form id="upload" method="POST" action="/pond/upload" enctype="multipart/form-data">

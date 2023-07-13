@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\http\Controllers\uploadController;
+use App\http\Controllers\UploadController;
 // use App\http\Controllers\LoginController;
 use App\Http\Controllers\LoginController;
 use App\http\Controllers\RegisterController;
@@ -32,17 +32,18 @@ Route::get('/login',function(){
     return view('login');
 });
 Route::post('/users/validate/upload', 'UploadController@validateUpload');
-Route::post('/pond/upload','UploadController@uploadPond');
 Route::post('/users/upload','UploadController@upload');
+Route::post('/pond/upload_old','UploadController@uploadPond');
+// Route::post('/users/upload_old','UploadController@uploadOld');
 Route::post('/users/validate/download','DownloadController@validateDownload');
 Route::get('/users/download','DownloadController@download');
 Route::group(['middleware'=>'auth'],function(){
     Route::post('/logout',function(){
         // return view('login');
     });
-    Route::get('/login',function(){
-        return view('login');
-    });
+    // Route::get('/login',function(){
+    //     return view('login');
+    // });
     Route::get('/register',function(){
         return view('register');
     });
