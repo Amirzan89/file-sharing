@@ -1,385 +1,352 @@
-const form = document.querySelector('form');
-const progressArea = document.querySelector(".progress-area");
-const fileInput = document.querySelector('input[type="file"]');
-const dropArea = document.querySelector('form#uploadForm')
-const dragHeader = dropArea.querySelector('span');
-const rows = document.querySelectorAll(".row .content");
-const idForm = [];
-var id = 1, Files;
-const format = {
-    image: ["image/jpeg", "image/png"],
-    pdf: "application/pdf",
-    text: ["text/markdown", "text/plain", "application/msword"],
-    programming: ["application/x-php", "application/javascript"],
-};
-const dataUpload = {
-    url: "/users/upload",
-    maxFileSize: "10MB",
-};
-// inpFile.addEventListener('change',(event)=>{
-//     file = event.target.files[0];
-//     console.log('fileee')
-//     console.log(file)
-//     // showFile();
-// })
-dropArea.addEventListener('dragover',(event)=>{
-    event.preventDefault();
-    dropArea.classList.add('active');
-    dragHeader.textContent = 'Release File Here';
-});
-dropArea.addEventListener('dragleave',(event)=>{
-    event.preventDefault();
-    dropArea.classList.remove('active');
-    dragHeader.textContent = 'Choose a file or drag it here';
-});
+const uploadFiles = (() => {
+	const fileRequests = new WeakMap();
+	const ENDPOINTS = {
+		UPLOAD: '/upload',
+		UPLOAD_STATUS: '/upload-status',
+		UPLOAD_REQUEST: '/upload-request'
+	}
+	const defaultOptions = {
+		url: ENDPOINTS.UPLOAD,
+		startingByte: 0,
+		fileId: '',
+		onAbort() {},
+		onProgress() {},
+		onError() {},
+		onComplete() {}
+	};
+	
+	const uploadFileChunks = (file, options) => {
+		const formData = new FormData();
+		const req = new XMLHttpRequest();
+		const chunk = file.slice(options.startingByte);
+		
+		formData.append('chunk', chunk, file.name);
+		formData.append('fileId', options.fileId);
+		
+		req.open('POST', options.url, true);
+		req.setRequestHeader('Content-Range', `bytes=${options.startingByte}-${options.startingByte+chunk.size}/${file.size}`);
+		req.setRequestHeader('X-File-Id', options.fileId);
+		
+		req.onload = (e) => {
+			// it is possible for load to be called when the request status is not 200
+			// this will treat 200 only as success and everything else as failure
+			if (req.status === 200) {
+				options.onComplete(e, file);
+			} else {
+				options.onError(e, file);
+			}
+		}
+		
+		req.upload.onprogress = (e) => {
+			const loaded = options.startingByte + e.loaded;
+			options.onProgress({...e,
+				loaded,
+				total: file.size,
+				percentage: loaded * 100 / file.size
+			}, file);
+		}
+		
+		req.ontimeout = (e) => options.onError(e, file);
+		
+		req.onabort = (e) => options.onAbort(e, file);
+		
+		req.onerror = (e) => options.onError(e, file);
+		
+		fileRequests.get(file).request = req;
+		
+		req.send(formData);
+	};
+	
+	const uploadFile = (file, options) => {
+		return fetch(ENDPOINTS.UPLOAD_REQUEST, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				fileName: file.name,
+			})
+		})
+			.then(res => res.json())
+			.then(res => {
+				options = {...options, ...res};
+				fileRequests.set(file, {request: null, options});
+				
+				uploadFileChunks(file, options);
+			})
+			.catch(e => {
+				options.onError({...e, file})
+			})
+	}
+	
+	const abortFileUpload = async file => {
+		const fileReq = fileRequests.get(file);
+		
+		if (fileReq && fileReq.request) {
+			fileReq.request.abort();
+			return true;
+		}
+		
+		return false;
+	};
+	
+	const retryFileUpload = file => {
+		const fileReq = fileRequests.get(file);
+		
+		if (fileReq) {
+			// try to get the status just in case it failed mid upload
+			return fetch(`${ENDPOINTS.UPLOAD_STATUS}?fileName=${file.name}&fileId=${fileReq.options.fileId}`)
+				.then(res => res.json())
+				.then(res => { // if uploaded we continue
+					uploadFileChunks(file, {...fileReq.options, startingByte: Number(res.totalChunkUploaded)});
+				})
+				.catch(() => { // if never uploaded we start
+					uploadFileChunks(file, fileReq.options)
+				})
+		}
+	};
+	
+	const clearFileUpload = async file => {
+		const fileReq = fileRequests.get(file);
+		
+		if (fileReq) {
+			await abortFileUpload(file);
+			fileRequests.delete(file);
+			
+			return true;
+		}
+		
+		return false;
+	};
+	
+	const resumeFileUpload = file => {
+		const fileReq = fileRequests.get(file);
+		
+		if (fileReq) {
+			return fetch(`${ENDPOINTS.UPLOAD_STATUS}?fileName=${file.name}&fileId=${fileReq.options.fileId}`)
+				.then(res => res.json())
+				.then(res => {
+					uploadFileChunks(file, {...fileReq.options, startingByte: Number(res.totalChunkUploaded)});
+				})
+				.catch(e => {
+					fileReq.options.onError({...e, file})
+				})
+		}
+	}
+	
+	return (files, options = defaultOptions) => {
+		[...files].forEach(file => uploadFile(file, {...defaultOptions, ...options}));
+		
+		return {
+			abortFileUpload,
+			retryFileUpload,
+			clearFileUpload,
+			resumeFileUpload
+		}
+	}
+})();
 
-//finding id form upload
-rows.forEach((row) => {
-    idForm.push(row.id);
-});
-form.addEventListener("click", () => {
-    fileInput.click();
-});
-function validateUpload(form) {
-    const dataFile = [];
-    const files = form.files;
-    for(let i = 0; i < files.length; i++){
-        dataFile.push(
-            {'id':i+1},
-            {'name':files[i].name},
-            {'ext':files[i].name.split('.').pop()},
-            {'size':files[i].size}
-        );
-    }
-    // verify file to server
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/users/validate/upload");
-    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-    // xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken);
-    xhr.onload = () => {
-        response = xhr.responseText;
-        console.log(response.body);
-        if (xhr.status === 200) {
-            return response.body;
-        } else {
-            throw response.body;
-        }
-    };
-    xhr.send(JSON.stringify(dataFile));
-}
+const uploadAndTrackFiles = (() => {
+	const files = new Map();
+	const progressBox = document.createElement('div');
+	const FILE_STATUS = {
+		PENDING: 'pending',
+		UPLOADING: 'uploading',
+		PAUSED: 'paused',
+		COMPLETED: 'completed',
+		FAILED: 'failed'
+	}
+	let uploader = null;
+	
+	progressBox.className = 'upload-progress-tracker';
+	progressBox.innerHTML = `
+				<h3>Uploading 0 Files</h3>
+				<p class="upload-progress">
+					<span class="uploads-percentage">0%</span>
+					<span class="success-count">0</span>
+					<span class="failed-count">0</span>
+					<span class="paused-count">0</span>
+				</p>
+				<button type="button" class="maximize-btn">Maximize</button>
+				<div class="uploads-progress-bar" style="width: 0;"></div>
+				<div class="file-progress-wrapper"></div>
+			`;
+	
+	progressBox
+		.querySelector('.maximize-btn')
+		.addEventListener('click', (e) => {
+			e.currentTarget.classList.toggle('expanded');
+			progressBox.classList.toggle('expanded');
+		})
+	
+	const updateProgressBox = () => {
+		const [title, uploadProgress, expandBtn, progressBar] = progressBox.children;
+		
+		if (files.size > 0) {
+			let totalUploadedFiles = 0;
+			let totalUploadingFiles = 0;
+			let totalFailedFiles = 0;
+			let totalPausedFiles = 0;
+			let totalChunkSize = 0;
+			let totalUploadedChunkSize = 0;
+			const [uploadedPerc, successCount, failedCount, pausedCount] = uploadProgress.children;
+			
+			files.forEach(fileObj => {
+				if(fileObj.status === FILE_STATUS.FAILED) {
+					totalFailedFiles += 1;
+				} else {
+					if (fileObj.status === FILE_STATUS.COMPLETED) {
+						totalUploadedFiles += 1;
+					} else if(fileObj.status === FILE_STATUS.PAUSED) {
+						totalPausedFiles += 1;
+					} else {
+						totalUploadingFiles += 1;
+					}
+					
+					totalChunkSize += fileObj.size;
+					totalUploadedChunkSize += fileObj.uploadedChunkSize;
+				}
+			});
+			
+			const percentage = totalChunkSize > 0 ? Math.min(100, Math.round((totalUploadedChunkSize * 100) / totalChunkSize)) : 0;
+			
+			title.textContent = percentage === 100
+				? `Uploaded ${totalUploadedFiles} File${totalUploadedFiles !== 1 ? 's' : ''}`
+				: `Uploading ${totalUploadingFiles}/${files.size} File${files.size !== 1 ? 's' : ''}`;
+			uploadedPerc.textContent = `${percentage}%`;
+			successCount.textContent = totalUploadedFiles;
+			failedCount.textContent = totalFailedFiles;
+			pausedCount.textContent = totalPausedFiles;
+			progressBar.style.width = `${percentage}%`;
+			progressBox.style.backgroundSize = `${percentage}%`;
+			expandBtn.style.display = 'inline-block';
+			uploadProgress.style.display = 'block';
+			progressBar.style.display = 'block';
+		} else {
+			title.textContent = 'No Upload in Progress'
+			expandBtn.style.display = 'none';
+			uploadProgress.style.display = 'none';
+			progressBar.style.display = 'none';
+		}
+	}
+	
+	const updateFileElement = fileObject => {
+		const [
+			{children: [{children: [status]}, progressBar]}, // .file-details
+			{children: [retryBtn, pauseBtn, resumeBtn, clearBtn]} // .file-actions
+		] = fileObject.element.children;
+		
+		requestAnimationFrame(() => {
+			status.textContent = fileObject.status === FILE_STATUS.COMPLETED ? fileObject.status : `${Math.round(fileObject.percentage)}%`;
+			status.className = `status ${fileObject.status}`;
+			progressBar.style.width = fileObject.percentage + '%';
+			progressBar.style.background = fileObject.status === FILE_STATUS.COMPLETED
+				? 'green' : fileObject.status === FILE_STATUS.FAILED
+					? 'red' : '#222';
+			pauseBtn.style.display = fileObject.status === FILE_STATUS.UPLOADING ? 'inline-block' : 'none';
+			retryBtn.style.display = fileObject.status === FILE_STATUS.FAILED ? 'inline-block' : 'none';
+			resumeBtn.style.display = fileObject.status === FILE_STATUS.PAUSED ? 'inline-block' : 'none';
+			clearBtn.style.display = fileObject.status === FILE_STATUS.COMPLETED || fileObject.status === FILE_STATUS.PAUSED
+				? 'inline-block' : 'none';
+			updateProgressBox();
+		});
+	}
+	
+	const setFileElement = (file) => {
+		const extIndex = file.name.lastIndexOf('.');
+		const fileElement = document.createElement('div');
+		fileElement.className = 'file-progress';
+		fileElement.innerHTML = `
+			<div class="file-details" style="position: relative">
+				<p>
+					<span class="status">pending</span>
+					<span class="file-name">${file.name.substring(0, extIndex)}</span>
+					<span class="file-ext">${file.name.substring(extIndex)}</span>
+				</p>
+				<div class="progress-bar" style="width: 0;"></div>
+			</div>
+			<div class="file-actions">
+				<button type="button" class="retry-btn" style="display: none">Retry</button>
+				<button type="button" class="cancel-btn" style="display: none">Pause</button>
+				<button type="button" class="resume-btn" style="display: none">Resume</button>
+				<button type="button" class="clear-btn" style="display: none">Clear</button>
+			</div>
+		`;
+		files.set(file, {
+			element: fileElement,
+			size: file.size,
+			status: FILE_STATUS.PENDING,
+			percentage: 0,
+			uploadedChunkSize: 0
+		});
+		
+		const [_, {children: [retryBtn, pauseBtn, resumeBtn, clearBtn]}] = fileElement.children;
+		
+		clearBtn.addEventListener('click', () => {
+			uploader.clearFileUpload(file);
+			files.delete(file);
+			fileElement.remove();
+			updateProgressBox();
+		});
+		retryBtn.addEventListener('click', () => uploader.retryFileUpload(file));
+		pauseBtn.addEventListener('click', () => uploader.abortFileUpload(file));
+		resumeBtn.addEventListener('click', () => uploader.resumeFileUpload(file));
+		progressBox.querySelector('.file-progress-wrapper').appendChild(fileElement);
+	}
+	
+	const onComplete = (e, file) => {
+		const fileObj = files.get(file);
+		
+		fileObj.status = FILE_STATUS.COMPLETED;
+		fileObj.percentage = 100;
+		
+		updateFileElement(fileObj);
+	}
+	
+	const onProgress = (e, file) => {
+		const fileObj = files.get(file);
+		
+		fileObj.status = FILE_STATUS.UPLOADING;
+		fileObj.percentage = e.percentage;
+		fileObj.uploadedChunkSize = e.loaded;
+		
+		updateFileElement(fileObj);
+	}
+	
+	const onError = (e, file) => {
+		const fileObj = files.get(file);
+		
+		fileObj.status = FILE_STATUS.FAILED;
+		fileObj.percentage = 100;
+		
+		updateFileElement(fileObj);
+	}
+	
+	const onAbort = (e, file) => {
+		const fileObj = files.get(file);
+		
+		fileObj.status = FILE_STATUS.PAUSED;
+		
+		updateFileElement(fileObj);
+	}
+	
+	return (uploadedFiles) => {
+		[...uploadedFiles].forEach(setFileElement);
+		
+		document.body.appendChild(progressBox);
+		
+		uploader = uploadFiles(uploadedFiles, {
+			onProgress,
+			onError,
+			onAbort,
+			onComplete
+		});
+	}
+})();
 
-function uploadData(Form, file) {
-    // Send file to server
-    var size = file.size/1000;
-    if(size < 1000){
-        size += " KB";
-    }else if(size > 1000){
-        size = (size/1000)+" MB"
-    }else if(size > 1000000){
-        size = (size/1000000)+" GB"
-    }
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/users/upload");
-    xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken);
-    let paused = false;
-    let cancelled = false;
-    let startTime = 0;
-    let endTime = 0;
-    let progressHtml = `
-    <li class="row" id="${id}">
-        <div class="content">
-            <i class="fas fa-file-alt file"></i>
-            <div class="details">
-                <span class="name">${file.name}</span>
-                <span class="size">${size}</span>
-                <span class="percent">0%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress" style="width:0%;"></div>
-            </div>
-            <div class="controls">
-                <i class="fa-solid fa-pause pause-btn"></i>
-                <i class="fa-solid fa-x cancel-btn"></i>
-            </div>
-        </div>
-    </li>
-    `;
-    progressArea.insertAdjacentHTML("beforeend", progressHtml);
-    console.log(progressArea.getElementById(`${id}`));
-    const progressElem = progressArea.querySelector(`#${id}`);
-    xhr.upload.onprogress = (event) => {
-        // files.forEach((file)=>{
-            if (paused) {
-                return;
-            }
-            
-            const percent = Math.floor((event.loaded / event.total) * 100);
-            console.log("percent " + percent + "%");
-            // var progressData = 
-            // let progressHtml = `
-            // <li class="row" id="${id}">
-            //     <div class="content">
-            //         <i class="fas fa-file-alt file"></i>
-            //         <div class="details">
-            //             <span class="name">${file.name}</span>
-            //             <span class="size">${size}</span>
-            //             <span class="percent">${percent}%</span>
-            //         </div>
-            //         <div class="progress-bar">
-            //             <div class="progress" style="width:${percent}%;"></div>
-            //         </div>
-            //         <div class="controls">
-            //             <i class="fa-solid fa-pause pause-btn"></i>
-            //             <i class="fa-solid fa-x cancel-btn"></i>
-            //         </div>
-            //     </div>
-            // </li>
-            // `;
-            // progressArea.insertAdjacentHTML("beforeend", progressHtml);
-            
-            const pauseBtn = progressElem.querySelector(".pause-btn");
-            const playBtn = progressElem.querySelector(".play-btn");
-            const cancelBtn = progressElem.querySelector(".cancel-btn");
-            pauseBtn.addEventListener("click", () => {
-                paused = true;
-                startTime = 0;
-                endTime = 0;
-                xhr.abort();
-            });
+const fileInput = document.getElementById('file-upload-input');
 
-            playBtn.addEventListener("click", () => {
-                paused = false;
-                startTime = new Date().getTime() - (endTime - startTime || 0);
-                sendRequest();
-            });
-            
-            cancelBtn.addEventListener("click", () => {
-                cancelled = true;
-                xhr.abort();
-                progressElem.remove();
-            });
-            // });
-            id++;
-        };
-        
-        const sendRequest = () => {
-            if (cancelled) {
-            return;
-        }
-        xhr.onload = () => {
-            const response = xhr.responseText;
-            // console.log(response.body);
-            if (xhr.status === 200) {
-                // console.log();
-                console.log("File uploaded successfully");
-            } else {
-                throw "File upload failed";
-            }
-        };
-        
-        var formData = new FormData(Form);
-        formData.append('email', 'Admin@gmail.com');
-        formData.append('files', file);
-        xhr.send(formData);
-    };
-    
-    sendRequest();
-    return {
-        xhr,
-        pause: () => {
-            paused = true;
-            startTime = 0;
-            endTime = 0;
-            xhr.abort();
-        },
-        play: () => {
-            paused = false;
-            startTime = new Date().getTime() - (endTime - startTime || 0);
-            sendRequest();
-        },
-        cancel: () => {
-            cancelled = true;
-            xhr.abort();
-        },
-    };
-}
-dropArea.addEventListener('drop',(event)=>{
-    event.preventDefault();
-    files = event.dataTransfer.files;
-    for(let i=0; i<files.length; i++){
-        console.log(files[i]);
-        console.log((files[i].size/1000)+" KB");
-        console.log((files[i].size/100000)+" MB");
-        console.log('iddd file '+id);
-        uploadData(dropArea,files[i]);
-        // ++id;
-        console.log('id'+id)
-    }
-});
-fileInput.addEventListener('change',(event)=>{
-    var file = event.target.files[0];
-    console.log(file)
-    files = fileInput.files;
-    console.log(files)
-    for(let i=0; i<files.length; i++){
-        console.log(files[i]);
-        console.log('iddd file '+id);
-        uploadData(dropArea,files[i]);
-        id ++;
-        console.log('id'+id)
-    }
-    // files.forEach((file)=>{
-    //     console.log(file)
-    //     // uploadData(dropArea,file);
-    // })
+fileInput.addEventListener('change', e => {
+	uploadAndTrackFiles(e.currentTarget.files)
+	e.currentTarget.value = '';
 })
-// dropArea.onsubmit = (event) => {
-//     event.preventDefault();
-//     var formData = new FormData(dropArea);
-//     formData.append('email', 'Admin@gmail.com');
-//     formData.append('judul', inpJudul.value);
-//     formData.append('isi_artikel', inpIsi.value);
-//     formData.append('foto', file);
-
-//     const xhr = new XMLHttpRequest();
-
-//     const pauseBtn = document.createElement('button');
-//     // pauseBtn.innerText = 'Pause';
-
-//     const playBtn = document.createElement('button');
-//     playBtn.innerText = 'Play';
-
-//     const cancelBtn = document.createElement('button');
-//     cancelBtn.innerText = 'Cancel';
-
-//     pauseBtn.addEventListener('click', () => {
-//         xhr.abort();
-//     });
-
-//     playBtn.addEventListener('click', () => {
-//         sendRequest();
-//     });
-
-//     cancelBtn.addEventListener('click', () => {
-//         xhr.abort();
-//         formTambah.reset();
-//         dropArea.querySelector('img').remove();
-//         dropArea.innerHTML = `
-//         <header>Drop File</header>
-//         `;
-//         dropArea.classList.remove('active');
-//     });
-
-//     const sendRequest = () => {
-//         xhr.open('POST', '/page/edukasi');
-//         xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken);
-
-//         xhr.onload = () => {
-//             const response = JSON.parse(xhr.responseText);
-//             console.log(response);
-//             formTambah.reset();
-//             dropArea.querySelector('img').remove();
-//             dropArea.innerHTML = `
-//             <header>Drop File</header>`;
-//             dropArea.classList.remove('active');
-//             showPopup(response);
-//         };
-
-//         xhr.onerror = () => {
-//             console.error('Request failed');
-//             showPopup('Request failed');
-//         };
-
-//         xhr.send(formData);
-//     };
-
-//     sendRequest();
-
-//     return false;
-// };
-
-// const resData = validateUpload(form);
-// console.log('files '+resData.data);
-// console.log('id files'+resData.data.data.id);
-fileInput.addEventListener('change',(event)=>{
-    try {
-        event.preventDefault();
-        const res = validateUpload(fileInput);
-        // files = fileInput.files;
-        // for(let i = 0; i < files.length; i++){
-        //     console.log("data ke "+i);
-        //     console.log(files[i]);
-        //     console.log("size file "+files[i].size)
-        //     console.log("nama file "+files[i].name)
-        //     console.log("ext "+files[i].name.split('.').pop())
-        //     console.log();
-        // }
-    } catch (error) {
-        console.log("error "+error);
-    }
-})
-// console.log(uploads);
-// fileInput.addEventListener("change", () => {
-//     try{
-//         const formData = new FormData(pond('form'));
-//         const files = fileInput.files;
-//         // for (let i = 0; i < files.length; i++) {
-//             const file = files[i];
-//             console.log(file);
-//             // Do something with the file
-//             console.log(file.name);
-//             if (!format.pdf.includes(file.type)) {
-//                 throw "File type is not allowed";
-//             }
-//             formData.append(`file_${i}`, file);
-//         // }
-//         // Send file to server
-//         const xhr = new XMLHttpRequest();
-//         xhr.open("POST", "/users/upload");
-//         xhr.onload = ()=>{
-//             // response = JSON.parse(xhr.responseText);
-//             response = xhr.responseText;
-//             console.log(response.body);
-//             if (xhr.status === 200) {
-//                 console.log();
-//                 alert("File uploaded successfully");
-//             } else {
-//                 throw "File upload failed";
-//             }
-//         };
-//         xhr.send(formData);
-//         console.log('done upload');
-//     }catch(error){
-//         console.log(error);
-//     }
-// });
-
-
-// var dropFileDiv = document.getElementById("drop-file-div");
-// Prevent default drag behaviors
-// ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-//     form.addEventListener(eventName, preventDefaults, false)
-// })
-// Highlight drop area when file is dragged over it
-form.addEventListener('dragover', highlight, false)
-form.addEventListener('dragenter', highlight, false)
-// Remove highlight when file is not dragged over drop area
-form.addEventListener('dragleave', unhighlight, false)
-form.addEventListener('dragend', unhighlight, false)
-// Handle file drop
-form.addEventListener('drop', handleDrop, false)
-function preventDefaults (event) {
-    event.preventDefault();
-    event.stopPropagation()
-}
-function highlight(event) {
-    form.classList.add('highlight')
-}
-function unhighlight(event) {
-    form.classList.remove('highlight')
-}
-function handleDrop(event) {
-    var fileListt = event.dataTransfer.files
-    // handle dropped files here
-    console.log(fileListt)
-}

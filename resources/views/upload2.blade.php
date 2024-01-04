@@ -27,7 +27,11 @@
             <span>Choose a file or drag it here</span>
         </form>
         <section class="progress-area">
-            <li class="row">
+            <label class="upload-btn">
+                upload
+                <input type="file" multiple  id="file-upload-input" style="display: none;">
+            </label>
+            {{-- <li class="row">
                 <div class="content">
                     <i class="fas fa-file-alt file"></i>
                     <div class="details">
@@ -44,7 +48,7 @@
                         <i class="fa-solid fa-x cancel-btn"></i>
                     </div>
                 </div>
-            </li>
+            </li> --}}
         </section>
         <section class="uploaded-area">
             <li class="row">
@@ -61,6 +65,6 @@
             </li>
         </section>
     </div>
-    <script src="{{ asset('js/upload2.js') }}"></script>
+    <script src="{{ asset('js/upload2.js?') }}"></script>
 </body>
 </html>

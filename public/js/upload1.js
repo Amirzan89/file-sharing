@@ -14,7 +14,7 @@ const format = {
 const dataUpload = {
     url:'/users/upload',
     maxFileSize:'10MB'
-} 
+}
 //finding id form upload
 rows.forEach(row=>{
     idForm.push(row.id);
@@ -95,8 +95,6 @@ function uploadData(Form, file) {
         if (paused) {
             return;
         }
-        const percent = Math.floor((event.loaded / event.total) * 100);
-        console.log("percent " + percent + "%");
         let progressHtml = ` <li class="row">
             <i class="fas fa-file-alt"></i>
                 <div class="content">
@@ -127,6 +125,9 @@ function uploadData(Form, file) {
         const pauseBtn = progressElem.querySelector(".pause-btn");
         const playBtn = progressElem.querySelector(".play-btn");
         const cancelBtn = progressElem.querySelector(".cancel-btn");
+        const percent = Math.floor((event.loaded / event.total) * 100);
+        console.log("percent " + percent + "%");
+        // progressArea.querySelector();
 
         pauseBtn.addEventListener("click", () => {
             paused = true;
@@ -211,7 +212,7 @@ submitBtn.addEventListener("click", (event) => {
 //             console.log(file);
 //             // Do something with the file
 //             console.log(file.name);
-//             if (!format.pdf.includes(file.type)) {
+//             if (!format.pdf.includes(file.\)) {
 //                 throw "File type is not allowed";
 //             }
 //             formData.append(`file_${i}`, file);

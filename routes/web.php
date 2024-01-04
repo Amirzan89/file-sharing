@@ -31,10 +31,12 @@ Route::get('/upload2',function(){
 Route::get('/login',function(){
     return view('login');
 });
+Route::post('/upload-request', 'FileUploadController@initiateUploadRequest');
+Route::get('/upload-status', 'FileUploadController@checkUploadStatus');
+Route::post('/upload', 'FileUploadController@uploadFileChunk');
 Route::post('/users/validate/upload', 'UploadController@validateUpload');
 Route::post('/users/upload','UploadController@upload');
 Route::post('/pond/upload_old','UploadController@uploadPond');
-// Route::post('/users/upload_old','UploadController@uploadOld');
 Route::post('/users/validate/download','DownloadController@validateDownload');
 Route::get('/users/download','DownloadController@download');
 Route::group(['middleware'=>'auth'],function(){
