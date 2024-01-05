@@ -25,6 +25,9 @@ Route::get('/pond',function(){
 Route::get('/upload1',function(){
     return view('upload1');
 });
+Route::get('/upload1_old',function(){
+    return view('upload1_old');
+});
 Route::get('/upload2',function(){
     return view('upload2');
 });
