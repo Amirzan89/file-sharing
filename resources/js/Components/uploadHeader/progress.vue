@@ -110,88 +110,76 @@ export default{
             }
         },
 
-        handleFileChange(event) {
-            this.files = Array.from(event.target.files);
-        },
         startUpload() {
-            // Assume you have a server endpoint for handling resumable uploads
             const uploadUrl = '/upload';
-
-            // Initialize the resumable upload for each file
-            this.files.forEach((file) => {
-                this.initializeUpload(uploadUrl, file);
-            });
-        },
-        initializeUpload(uploadUrl, file) {
             const chunkSize = 1024 * 1024; // 1MB chunks
-            const totalChunks = Math.ceil(file.size / chunkSize);
+            const totalChunks = Math.ceil(this.file.size / chunkSize);
             let currentChunk = 1;
 
+            // Store cancellation tokens for each file upload
+            const cancelTokens = [];
+
             const uploadNextChunk = () => {
-                if (this.isPaused) {
-                // Upload is paused, wait for resume
-                    return;
-                }
-
                 const start = (currentChunk - 1) * chunkSize;
-                const end = Math.min(currentChunk * chunkSize, file.size);
-                const chunk = file.slice(start, end);
+                const end = Math.min(currentChunk * chunkSize, this.file.size);
+                const chunk = this.file.slice(start, end);
 
-                const formData = new FormData();
-                formData.append('file', chunk);
-                formData.append('currentChunk', currentChunk);
-                formData.append('totalChunks', totalChunks);
+                const headers = {
+                    'Content-Range': `bytes ${start}-${end - 1}/${this.file.size}`,
+                };
 
-                // Send the chunk to the server
-                this.uploadChunk(uploadUrl, formData, () => {
-                    // Continue with the next chunk
+                // Create a cancellation token for this chunk
+                const source = axios.CancelToken.source();
+                cancelTokens.push(source);
+
+                this.uploadChunk(uploadUrl, chunk, headers, source, () => {
                     currentChunk++;
                     if (currentChunk <= totalChunks) {
                         uploadNextChunk();
                     } else {
-                        // Upload complete for the current file
-                        console.log(`Upload complete for file: ${file.name}`);
+                        console.log('Upload complete');
                     }
                 });
             };
 
-            // Start uploading chunks for the current file
             uploadNextChunk();
         },
-        uploadChunk(uploadUrl, formData, onComplete) {
-            // Make an HTTP request (e.g., using axios) to upload the chunk
-            const xhr = axios.create();
-            xhr.upload.onprogress = (event) => {
-                const percent = (event.loaded / event.total) * 100;
-                console.log(`Progress: ${percent.toFixed(2)}%`);
-            };
 
-            xhr.post(uploadUrl, formData)
+        uploadChunk(uploadUrl, chunk, headers, cancelTokenSource, onComplete) {
+            axios.put(uploadUrl, chunk, { headers, cancelToken: cancelTokenSource.token })
                 .then(() => {
-                console.log(`Chunk ${formData.get('currentChunk')} uploaded successfully.`);
+                console.log(`Chunk uploaded successfully.`);
                 onComplete();
                 })
                 .catch((error) => {
-                console.error('Error uploading chunk:', error);
-                // Handle errors or implement retry logic if needed
+                if (axios.isCancel(error)) {
+                    console.log('Upload canceled or paused.');
+                } else {
+                    console.error('Error uploading chunk:', error);
+                }
                 });
         },
-        pauseUpload() {
-            this.isPaused = true;
+
+        // Pause the upload for a specific file
+        pauseUpload(fileIndex) {
+            if (cancelTokens[fileIndex]) {
+                cancelTokens[fileIndex].cancel('Upload paused');
+            }
         },
-        resumeUpload() {
-            this.isPaused = false;
-            // Continue uploading from the last paused point for each file
-            this.files.forEach((file) => {
-                this.initializeUpload('/resume-upload', file);
-            });
+
+            // Resume the upload for a specific file
+        resumeUpload(fileIndex) {
+            if (cancelTokens[fileIndex]) {
+                // Create a new cancellation token for this file
+                cancelTokens[fileIndex] = axios.CancelToken.source();
+            }
         },
-        cancelUpload() {
-        // Implement logic to cancel the upload if needed for each file
-            this.files.forEach((file) => {
-                console.log(`Upload canceled for file: ${file.name}`);
-            // You can add logic to cancel the ongoing upload on the server side
-            });
+
+            // Cancel the upload for a specific file
+        cancelUpload(fileIndex) {
+            if (cancelTokens[fileIndex]) {
+                cancelTokens[fileIndex].cancel('Upload canceled');
+            }
         },
     }
 }
