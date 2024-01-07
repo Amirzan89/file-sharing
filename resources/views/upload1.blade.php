@@ -21,7 +21,8 @@
     <div> 
         <img src="{{asset('images/background.jpg')}}" class="object-cover w-full max-h-screen pointer-events-none">
     </div>
-    <div class="absolute top-2/4 left-2/4 -translate-x-2/4 -translate-y-2/4 w-120 h-5/6 bg-white/20 rounded-2xl overflow-hidden">
+    <div class="absolute top-2/4 left-2/4 -translate-x-2/4 -translate-y-2/4 w-120 h-5/6 bg-white/20 rounded-2xl overflow-hidden" id="upload1">
+    {{-- <div class="absolute top-2/4 left-2/4 -translate-x-2/4 -translate-y-2/4 w-120 h-5/6 bg-white/20 rounded-2xl overflow-hidden">
         <header class="text-black text-4xl text-center mt-7 font-medium">File Uploader</header>
         <form method="POST" action="/users/upload" enctype="multipart/form-data" class="w-5/6 h-1/4 mt-10 mx-auto flex flex-col items-center justify-center text-black border-blue-500 border-3 border-dashed rounded-2xl gap-4 cursor-pointer">
             <i class="fa-solid fa-images text-5xl"></i>
@@ -205,7 +206,7 @@
                 </li>
             </ul>
         </div>
-    </div>
+    </div> --}}
     @vite('resources/js/app.js')
 </body>
 </html>
