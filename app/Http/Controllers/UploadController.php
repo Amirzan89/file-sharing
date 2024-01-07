@@ -42,7 +42,7 @@ class uploadController extends Controller
             if ($validator->fails()) {
                 return response()->json(['status'=>'error','message'=>$validator->errors()->toArray()],400);
             }
-            if(!in_array($this->)){
+            if(!in_array($request->input('format'),array_merge($this->extText, $this->extProgram, $this->extImage))){
                 return response()->json(['status'=>'error','message'=>'invalid format file'],400);
             }
             if($request->input('input') > $this->maxSize){
