@@ -5,11 +5,13 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Cookie;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Closure;
 use Carbon\Carbon;
 class uploadController extends Controller
@@ -48,7 +50,8 @@ class uploadController extends Controller
             if($request->input('input') > $this->maxSize){
                 return response()->json(['status'=>'error','message'=>'File too large'],400);
             }
-            $id = Carbon::now();
+            $id = Str::random(10);
+            Cache::put("file_upload_{$id}",$id,5*60);
             // $token = $csrf
             return response()->json(['status'=>'success','message'=>'File valid','data'=>['id'=>$id]]);
         }catch(Exception $err){
@@ -56,6 +59,15 @@ class uploadController extends Controller
         }
     }
     public function upload(Request $request){
+        $validator = Validator::make($request->all(), [
+            'files' => 'required|max:100048'
+        ], [    
+            'files.required' => 'Gambar tidak boleh kosong  harus diisi.',    
+            'files.max' => 'Ukuran file tidak boleh lebih dari 100 MB.'
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['status'=>'error','message'=>$validator->errors()->toArray()],400);
+        }
         $currentChunk = $request->input('currentChunk');
         $totalChunks = $request->input('totalChunks');
         $file = $request->file('file');

@@ -25,10 +25,10 @@ export default{
         return{
             fileUpload:[
                 {
-                    idFile:'random.png',
+                    idFile:'', //from server
                     process:xhr,
                     progress:'10%',
-                    status:'upload',
+                    status:'upload',// it can be upload or done
                 }
             ]
         }
@@ -56,7 +56,7 @@ export default{
             formData.append('id', dataRes.id);
             formData.append('file', file);
             const xhr = new XMLHttpRequest();
-            const idFile = dataRes.id; // Assuming id is unique and used as a file identifier
+            const idFile = dataRes.id;
             const progressKey = `progress_${idFile}`;
 
             xhr.open('POST', '/', true);
@@ -108,6 +108,90 @@ export default{
                 xhr.abort();
                 this.$set(this.fileUpload, `status_${idFile}`, 'canceled');
             }
+        },
+
+        handleFileChange(event) {
+            this.files = Array.from(event.target.files);
+        },
+        startUpload() {
+            // Assume you have a server endpoint for handling resumable uploads
+            const uploadUrl = '/upload';
+
+            // Initialize the resumable upload for each file
+            this.files.forEach((file) => {
+                this.initializeUpload(uploadUrl, file);
+            });
+        },
+        initializeUpload(uploadUrl, file) {
+            const chunkSize = 1024 * 1024; // 1MB chunks
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let currentChunk = 1;
+
+            const uploadNextChunk = () => {
+                if (this.isPaused) {
+                // Upload is paused, wait for resume
+                    return;
+                }
+
+                const start = (currentChunk - 1) * chunkSize;
+                const end = Math.min(currentChunk * chunkSize, file.size);
+                const chunk = file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('file', chunk);
+                formData.append('currentChunk', currentChunk);
+                formData.append('totalChunks', totalChunks);
+
+                // Send the chunk to the server
+                this.uploadChunk(uploadUrl, formData, () => {
+                    // Continue with the next chunk
+                    currentChunk++;
+                    if (currentChunk <= totalChunks) {
+                        uploadNextChunk();
+                    } else {
+                        // Upload complete for the current file
+                        console.log(`Upload complete for file: ${file.name}`);
+                    }
+                });
+            };
+
+            // Start uploading chunks for the current file
+            uploadNextChunk();
+        },
+        uploadChunk(uploadUrl, formData, onComplete) {
+            // Make an HTTP request (e.g., using axios) to upload the chunk
+            const xhr = axios.create();
+            xhr.upload.onprogress = (event) => {
+                const percent = (event.loaded / event.total) * 100;
+                console.log(`Progress: ${percent.toFixed(2)}%`);
+            };
+
+            xhr.post(uploadUrl, formData)
+                .then(() => {
+                console.log(`Chunk ${formData.get('currentChunk')} uploaded successfully.`);
+                onComplete();
+                })
+                .catch((error) => {
+                console.error('Error uploading chunk:', error);
+                // Handle errors or implement retry logic if needed
+                });
+        },
+        pauseUpload() {
+            this.isPaused = true;
+        },
+        resumeUpload() {
+            this.isPaused = false;
+            // Continue uploading from the last paused point for each file
+            this.files.forEach((file) => {
+                this.initializeUpload('/resume-upload', file);
+            });
+        },
+        cancelUpload() {
+        // Implement logic to cancel the upload if needed for each file
+            this.files.forEach((file) => {
+                console.log(`Upload canceled for file: ${file.name}`);
+            // You can add logic to cancel the ongoing upload on the server side
+            });
         },
     }
 }
