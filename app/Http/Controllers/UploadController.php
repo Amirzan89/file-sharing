@@ -58,7 +58,7 @@ class uploadController extends Controller
             return response()->json(['status'=>'error','message'=>$err->getMessage()],400);
         }
     }
-    public function upload(Request $request){
+    public function uploadForm(Request $request){
         $validator = Validator::make($request->all(), [
             'files' => 'required|max:100048'
         ], [    
@@ -79,6 +79,22 @@ class uploadController extends Controller
             return response()->json(['message' => 'Upload complete']);
         }
         return response()->json(['message' => 'Chunk uploaded successfully']);
+    }
+    public function uploadHeader(Request $request){
+        $file = $request->file('file');
+        $currentChunk = $request->header('Content-Range');
+        $rangeParts = explode('-', explode(' ', $currentChunk)[1]);
+        $startByte = $rangeParts[0];
+        $endByte = $rangeParts[1];
+        Storage::put('uploads/' . $file->getClientOriginalName(), file_get_contents($file), true);
+        // If this is the last chunk, you can process the complete file
+        if ($endByte == $file->getSize() - 1) {
+            // File upload is complete
+            // Additional processing logic here
+            return response()->json(['status' => 'success', 'message' => 'Upload complete']);
+        }
+
+        return response()->json(['status' => 'success', 'message' => 'Chunk uploaded successfully']);
     }
     // public function validateUpload(Request $req,Response $res){
     //     try{
