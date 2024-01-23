@@ -35,15 +35,19 @@ export default{
     },
     methods:{
         validationFile(file){
-            axios.post('/file/upload',{
-                name:file.name,
-                format:file.format,
-                size:file.size,
-            }).then(function(res){
-                return {status:'sucess',data:res.body.data}
-            }).catch(function(err){
-                return {status:'error',message:err.body.message}
-            })
+            try {
+                console.log('cobak validasi file');
+                return 'tersrah aku lah';
+                const res = axios.post('/file/upload', {
+                name: file.name,
+                format: file.format,
+                size: file.size,
+                });
+
+                return { status: 'success', data: res.data };
+            } catch (err) {
+                return { status: 'error', message: err.response.data.message };
+            }
         },
         uploadFile(file) {
             let validation = this.validationFile(file);
