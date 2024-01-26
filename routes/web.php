@@ -22,6 +22,5 @@ Route::get('/login',function(){
 });
 Route::group(['prefix'=>'/upload'],function(){
     Route::post('/validate','UploadController@validation');
-    Route::post('/Form','UploadController@uploadForm');
-    Route::put('/header','UploadController@uploadHeader');
+    Route::post('/upload','UploadController@uploadChunk');
 });

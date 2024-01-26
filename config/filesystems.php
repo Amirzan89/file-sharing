@@ -29,13 +29,31 @@ return [
     */
 
     'disks' => [
-
-        'local' => [
+        'temp' => [
             'driver' => 'local',
-            'root' => storage_path('app'),
+            'root' => storage_path('app/temp'),
             'throw' => false,
         ],
-
+        'image' => [
+            'driver' => 'local',
+            'root' => storage_path('app/image'),
+            'throw' => false,
+        ],
+        'pdf' => [
+            'driver' => 'local',
+            'root' => storage_path('app/pdf'),
+            'throw' => false,
+        ],
+        'text' => [
+            'driver' => 'local',
+            'root' => storage_path('app/text'),
+            'throw' => false,
+        ],
+        'program' => [
+            'driver' => 'local',
+            'root' => storage_path('app/program'),
+            'throw' => false,
+        ],
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
@@ -43,7 +61,6 @@ return [
             'visibility' => 'public',
             'throw' => false,
         ],
-
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
