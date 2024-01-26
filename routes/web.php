@@ -2,9 +2,6 @@
 use Illuminate\Support\Facades\Route;
 use App\http\Controllers\UploadController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
 Route::get('/pond',function(){
     return view('uploadPond');
 });
@@ -21,6 +18,9 @@ Route::get('/login',function(){
     return view('login');
 });
 Route::group(['prefix'=>'/upload'],function(){
+    Route::post('/file','UploadController@uploadChunk');
     Route::post('/validate','UploadController@validation');
-    Route::post('/upload','UploadController@uploadChunk');
+});
+Route::get('/', function () {
+    return view('welcome');
 });

@@ -7,16 +7,17 @@
     </form>
     <div class="mt-12 h-2/4 w-5/6 mx-auto overflow-hidden flex flex-col text-black">
         <ul class="progress-area h-2/4 mb-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
-            <progressComponent ref="progressRef" @upload-finished="handleUploadFinished"></progressComponent>
-            <!-- <template v-for="file in allFile">
+            <!-- <progressComponent ref="progressRef" @upload-finished="handleUploadFinished"></progressComponent> -->
+            <template v-for="file in allFile">
                 <progressComponent
                     v-if="file.status === 'upload'"
                     :key="file.id"
-                    :file-data="file"
-                    ref="progressRef"
+                    :file="getFileData(file)"
+                    :progress="file.progress"
+                    :ref="'progressRef_' + file.id"
                     @upload-finished="handleUploadFinished"
                 ></progressComponent>
-            </template> -->
+            </template>
         </ul>
         <ul class="uploaded-area h-2/4 mt-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
             <template v-for="file in allFile">
@@ -40,14 +41,16 @@ export default{
     },
     data(){
         return{
-            id:0,
-            newData:[],
+            domain: window.location.protocol + '//' + window.location.hostname + ':' + window.location.port,
             allFile:[
                 {
                     //format
+                    // xhr data for all progress
                     // id:id,
                     // file:'random.png',
-                    // status:['upload','done'],
+                    //size:size
+                    //progress:0%,
+                    // status:['upload' or 'done'],
                 }
             ],
         }
@@ -59,9 +62,6 @@ export default{
         handleFileChange(event) {
             this.handleFiles(event.target.files);
         },
-        makeUpload() {
-            this.newData = '';
-        },
         handleDragOver(event) {
             event.preventDefault();
         },
@@ -69,35 +69,128 @@ export default{
             event.preventDefault();
             this.handleFiles(event.dataTransfer.files);
         },
-        handleFiles(files) {
-            const progressRef = this.$refs.progressRef;
-            if(progressRef){
-                progressRef.validationFile('vdvsvav');
-            }else{
-                console.log('ra kenekekkk');
-            }
-            return;
-            for (let i = 0; i < files.length; i++) {
-                var resValidation = this.$refs.progressRef.validationFile(files[i]);
-                console.log('mari');
-                console.log(resValidation);
-                return;
-                this.allFile.push({
-                    id:id,
-                    file:files[i].name,
-                    status:'upload'
-                });
-                if(resValidation.status == 'error'){
-                    //show uploaded error
-                }else{
-                    //success upload file
-                    this.$refs['progressRef_' + resValidation.data.id].uploadFile(files[i]);
+        getFileData(file) {
+            const fileData = { ...file };
+            delete fileData.xhr;
+            return fileData;
+        },
+        validationFile(file){
+            return axios.post(this.domain + '/upload/validate', {
+                name: file.name,
+                format: file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2),
+                size: file.size,
+            }).then(function(res){
+                return { status: 'success', data: res.data };
+            }).catch(function(err){
+                return { status: 'error', message: err.response.data.message };
+            });
+        },
+        uploadChunk(uploadUrl, formData, onProgress, onComplete) {
+            const xhr = axios.create({
+                baseURL: this.domain  // Add your base URL here
+            });
+            // Attach progress event listener before making the request
+            xhr.interceptors.request.use(config => {
+                config.onUploadProgress = event => {
+                const percent = (event.loaded / event.total) * 100;
+                console.log(`Progress: ${percent.toFixed(2)}%`);
+                onProgress(percent.toFixed(2));
+                };
+                return config;
+            });
+            // Make the POST request
+            xhr.post('/upload/file', formData).then(() => {
+                console.log(`Upload complete for URL: ${uploadUrl}`);
+                onComplete();
+            }).catch(error => {
+                console.error('Error uploading:', error);
+            });
+        },
+
+        //old file
+        // uploadChunk(uploadUrl, formData, onProgress, onComplete) {
+        //     const xhr = axios.create();
+        //     xhr.post(this.domain + '/upload', formData).then(() => {
+        //         console.log(`Chunk ${formData.get('currentChunk')} uploaded successfully.`);
+        //         onComplete();
+        //     }).catch((error) => {
+        //         console.error('Error uploading chunk:', error);
+        //     });
+        //     xhr.upload.onprogress = (event) => {
+        //         const percent = (event.loaded / event.total) * 100;
+        //         console.log(`Progress: ${percent.toFixed(2)}%`);
+        //         onProgress(percent.toFixed(2));
+        //     };
+        // },
+        async initializeUpload(file,idFile) {
+            const uploadUrl = '/upload';
+            const chunkSize = 1024 * 1024;
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            let currentChunk = 1;
+            const onProgress = (percent) => {
+                const index = this.allFile.findIndex((item) => item.id === idFile);
+                if (index !== -1) {
+                    this.$set(this.allFile, index, {
+                        ...this.allFile[index],
+                        progress: `${percent}%`,
+                    });
                 }
-                console.log('');
-            }
-            console.log(this.allFile)
+            };
+            const uploadNextChunk = () => {
+                if (this.isPaused) {
+                    return;
+                }
+                const start = (currentChunk - 1) * chunkSize;
+                const end = Math.min(currentChunk * chunkSize, file.size);
+                const chunk = file.slice(start, end);
+                const formData = new FormData();
+                formData.append('file', chunk);
+                formData.append('currentChunk', currentChunk);
+                formData.append('totalChunks', totalChunks);
+                formData.append('identifier', idFile);
+                return new Promise((resolve) => {
+                    this.uploadChunk(uploadUrl, formData, onProgress, () => {
+                        currentChunk++;
+                        if (currentChunk <= totalChunks) {
+                            resolve(uploadNextChunk());
+                        } else {
+                            console.log(`Upload complete for file: ${file.name}`);
+                            resolve();
+                        }
+                    });
+                });
+            };
+            return uploadNextChunk();
+        },
+        // const uploadPromises = files.map(async (file) => {
+        async handleFiles(files) {
+            const uploadPromises = Array.from(files).map(async (file) => {
+                const resValidation = await this.validationFile(file);
+                if (resValidation.status === 'error') {
+                    // Handle error
+                    console.log('file error');
+                } else {
+                    // Success upload file
+                    var xhr = await this.initializeUpload(file,resValidation.data.data.id);
+                    this.allFile.push({
+                        id: resValidation.id,
+                        xhr:xhr,
+                        file: file.name,
+                        size:file.size,
+                        progress: '0%',
+                        status: 'upload'
+                    });
+                }
+            });
+            return Promise.all(uploadPromises);
         },
         handleUploadFinished(){
+            // const progressRef = this.$refs.progressRef;
+            // // if(progressRef){
+            // //     this.validationFile('vdvsvav');
+            // // }else{
+            // // }
+            // // return;
             //
         }
     }

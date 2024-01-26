@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use App\Models\FileUpload;
 use Closure;
 use Carbon\Carbon;
 class uploadController extends Controller
@@ -42,16 +43,21 @@ class uploadController extends Controller
                 'size.required' => 'Size File cannot be empty.',    
             ]);
             if ($validator->fails()) {
-                return response()->json(['status'=>'error','message'=>$validator->errors()->toArray()],400);
+                $errors = [];
+                foreach ($validator->errors()->toArray() as $field => $errorMessages) {
+                    $errors[$field] = $errorMessages[0];
+                    break;
+                }
+                return response()->json(['status' => 'error', 'message' => implode(', ', $errors)], 400);
             }
-            if(!in_array($request->input('format'),array_merge($this->extText, $this->extPDF, $this->extImage))){
-                return response()->json(['status'=>'error','message'=>'invalid format file'],400);
-            }
-            if($request->input('input') > $this->maxSize){
-                return response()->json(['status'=>'error','message'=>'File too large'],400);
-            }
-            $id = Str::random(10).now();
-            Cache::put("file_upload_{$id}",$id,5*60);
+            // if(!in_array($request->input('format'),array_merge($this->extText, $this->extPDF, $this->extImage))){
+            //     return response()->json(['status'=>'error','message'=>'invalid format file'],400);
+            // }
+            // if($request->input('input') > $this->maxSize){
+            //     return response()->json(['status'=>'error','message'=>'File too large'],400);
+            // }
+            $id = Str::random(10);
+            FileUpload::create(['temp_id' => $id,'file_name' => $request->input('name')]);
             return response()->json(['status'=>'success','message'=>'File valid','data'=>['id'=>$id]]);
         }catch(Exception $err){
             return response()->json(['status'=>'error','message'=>$err->getMessage()],400);
@@ -64,8 +70,8 @@ class uploadController extends Controller
         }
         rmdir($directory);
     }
-    protected function assembleChunks($directory, $identifier) {
-        $completeFilePath = storage_path("app/uploads/{$identifier}_complete");
+    protected function assembleChunks($directory,$fileName) {
+        $completeFilePath = storage_path("app/uploads/{$fileName}");
         $completeFile = fopen($completeFilePath, 'w');
         for ($i = 1; $i <= count(glob("{$directory}/*.part")); $i++) {
             $chunkPath = "{$directory}/{$i}.part";
@@ -75,19 +81,28 @@ class uploadController extends Controller
         fclose($completeFile);
     }
     public function uploadChunk(Request $request) {
-        $validator = Validator::make($request->all(), [
-            'file' => 'required|file|max:100',
+        $validator = Validator::make($request->only('file','currentChunk','totalChunks','identifier'), [
+            'file' => 'required|file|max:2000',
             'currentChunk' => 'required|numeric',
             'totalChunks' => 'required|numeric',
             'identifier' => 'required|string',
         ]);
         if ($validator->fails()) {
-            return response()->json(['status' => 'error', 'message' => $validator->errors()->toArray()], 400);
+            $errors = [];
+            foreach ($validator->errors()->toArray() as $field => $errorMessages) {
+                $errors[$field] = $errorMessages[0];
+                break;
+            }
+            return response()->json(['status' => 'error', 'message' => implode(', ', $errors)], 400);
         }
         $currentChunk = $request->input('currentChunk');
         $totalChunks = $request->input('totalChunks');
         $file = $request->file('file');
         $identifier = $request->input('identifier');
+        $fileUpload = FileUpload::select('file_name')->where('temp_id', $identifier)->first();
+        if (!$fileUpload) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid file upload'], 400);
+        }
         $directory = storage_path("app/temp/{$identifier}");
         if (!file_exists($directory)) {
             mkdir($directory, 0777, true);
@@ -96,7 +111,7 @@ class uploadController extends Controller
         $chunkPath = "{$directory}/{$currentChunk}.part";
         file_put_contents($chunkPath, $file->get());
         if ($currentChunk == $totalChunks) {
-            $this->assembleChunks($directory, $identifier);
+            $this->assembleChunks($directory, $fileUpload->file_name);
             $this->cleanupTemporaryFiles($directory);
             return response()->json(['status'=>'success','message' => 'Upload complete']);
         }
