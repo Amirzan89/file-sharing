@@ -12,7 +12,7 @@
                 <progressComponent
                     v-if="file.status === 'upload'"
                     :key="file.id"
-                    :file="getFileData(file)"
+                    :internalFile="getFileData(file)"
                     :progress="file.progress"
                     :ref="'progressRef_' + file.id"
                     @upload-finished="handleUploadFinished"
@@ -41,18 +41,18 @@ export default{
     },
     data(){
         return{
-            domain: window.location.protocol + '//' + window.location.hostname + ':' + window.location.port,
             allFile:[
-                {
-                    //format
-                    // xhr data for all progress
-                    // id:id,
-                    // file:'random.png',
-                    //size:size
-                    //progress:0%,
-                    // status:['upload' or 'done'],
-                }
+                // {
+                //     format
+                //     xhr data for all progress
+                //     id:id,
+                //     file:'random.png',
+                //     size:size
+                //     progress:0%,
+                //     status:['upload' or 'done'],
+                // }
             ],
+            domain: window.location.protocol + '//' + window.location.hostname + ':' + window.location.port,
         }
     },
     methods:{
@@ -85,56 +85,40 @@ export default{
                 return { status: 'error', message: err.response.data.message };
             });
         },
-        uploadChunk(uploadUrl, formData, onProgress, onComplete) {
+        uploadChunk(formData, onProgress, onComplete) {
             const xhr = axios.create({
-                baseURL: this.domain  // Add your base URL here
+                baseURL: this.domain
             });
-            // Attach progress event listener before making the request
             xhr.interceptors.request.use(config => {
                 config.onUploadProgress = event => {
                 const percent = (event.loaded / event.total) * 100;
-                console.log(`Progress: ${percent.toFixed(2)}%`);
                 onProgress(percent.toFixed(2));
                 };
                 return config;
             });
             // Make the POST request
             xhr.post('/upload/file', formData).then(() => {
-                console.log(`Upload complete for URL: ${uploadUrl}`);
                 onComplete();
             }).catch(error => {
                 console.error('Error uploading:', error);
             });
         },
-
-        //old file
-        // uploadChunk(uploadUrl, formData, onProgress, onComplete) {
-        //     const xhr = axios.create();
-        //     xhr.post(this.domain + '/upload', formData).then(() => {
-        //         console.log(`Chunk ${formData.get('currentChunk')} uploaded successfully.`);
-        //         onComplete();
-        //     }).catch((error) => {
-        //         console.error('Error uploading chunk:', error);
-        //     });
-        //     xhr.upload.onprogress = (event) => {
-        //         const percent = (event.loaded / event.total) * 100;
-        //         console.log(`Progress: ${percent.toFixed(2)}%`);
-        //         onProgress(percent.toFixed(2));
-        //     };
-        // },
         async initializeUpload(file,idFile) {
-            const uploadUrl = '/upload';
             const chunkSize = 1024 * 1024;
             const totalChunks = Math.ceil(file.size / chunkSize);
+            let uploadedBytes = 0;
             let currentChunk = 1;
             const onProgress = (percent) => {
-                const index = this.allFile.findIndex((item) => item.id === idFile);
-                if (index !== -1) {
-                    this.$set(this.allFile, index, {
-                        ...this.allFile[index],
-                        progress: `${percent}%`,
-                    });
-                }
+                const overallProgress = ((uploadedBytes / file.size) * 100).toFixed(2);
+                // console.log(`progress overall: ${overallProgress}%`);
+                // console.log(this.allFile);
+                for (let i = 0; i < this.allFile.length; i++) {
+                    if (this.allFile[i].id === idFile) {
+                        // console.log(`progress on file: ${overallProgress}%`);
+                        this.allFile[i].progress = `${overallProgress}%`;
+                        break;
+                    }
+                };
             };
             const uploadNextChunk = () => {
                 if (this.isPaused) {
@@ -149,12 +133,12 @@ export default{
                 formData.append('totalChunks', totalChunks);
                 formData.append('identifier', idFile);
                 return new Promise((resolve) => {
-                    this.uploadChunk(uploadUrl, formData, onProgress, () => {
+                    this.uploadChunk(formData, onProgress, () => {
                         currentChunk++;
+                        uploadedBytes += end - start;
                         if (currentChunk <= totalChunks) {
                             resolve(uploadNextChunk());
                         } else {
-                            console.log(`Upload complete for file: ${file.name}`);
                             resolve();
                         }
                     });
@@ -162,8 +146,19 @@ export default{
             };
             return uploadNextChunk();
         },
-        // const uploadPromises = files.map(async (file) => {
+
         async handleFiles(files) {
+            const formatFileSize = function (bytes){
+                if (bytes < 1024) {
+                    return bytes + ' B';
+                } else if (bytes < 1024 * 1024) {
+                    return (bytes / 1024).toFixed(2) + ' KB';
+                } else if (bytes < 1024 * 1024 * 1024) {
+                    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+                } else {
+                    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+                }
+            };
             const uploadPromises = Array.from(files).map(async (file) => {
                 const resValidation = await this.validationFile(file);
                 if (resValidation.status === 'error') {
@@ -171,15 +166,14 @@ export default{
                     console.log('file error');
                 } else {
                     // Success upload file
-                    var xhr = await this.initializeUpload(file,resValidation.data.data.id);
                     this.allFile.push({
-                        id: resValidation.id,
+                        id: resValidation.data.data.id,
                         xhr:xhr,
-                        file: file.name,
-                        size:file.size,
-                        progress: '0%',
+                        name: file.name,
+                        size:formatFileSize(file.size),
                         status: 'upload'
                     });
+                    var xhr = await this.initializeUpload(file,resValidation.data.data.id);
                 }
             });
             return Promise.all(uploadPromises);
