@@ -10,12 +10,15 @@
             <!-- <progressComponent ref="progressRef" @upload-finished="handleUploadFinished"></progressComponent> -->
             <template v-for="file in allFile">
                 <progressComponent
-                    v-if="file.status === 'upload'"
+                    v-if="file.status !== 'done'"
                     :key="file.id"
                     :internalFile="getFileData(file)"
                     :progress="file.progress"
                     :ref="'progressRef_' + file.id"
                     @upload-finished="handleUploadFinished"
+                    @continue-upload="continueUpload"
+                    @pause-upload="pauseUpload" 
+                    @cancel-upload="cancelUpload" 
                 ></progressComponent>
             </template>
         </ul>
@@ -49,7 +52,7 @@ export default{
                 //     file:'random.png',
                 //     size:size
                 //     progress:0%,
-                //     status:['upload' or 'done'],
+                //     status:['upload' or 'done','pause','cancel'],
                 // }
             ],
             domain: window.location.protocol + '//' + window.location.hostname + ':' + window.location.port,
@@ -84,6 +87,33 @@ export default{
             }).catch(function(err){
                 return { status: 'error', message: err.response.data.message };
             });
+        },
+        pauseUpload(idFile) {
+            console.log('incoming pause for id '+idFile);
+            for (let i = 0; i < this.allFile.length; i++) {
+                if (this.allFile[i].id === idFile) {
+                    console.log('pause for id '+idFile);
+                    this.allFile[i].status = 'pause';
+                    return;
+                }
+            };
+        },
+        cancelUpload(idFile) {
+            for (let i = 0; i < this.allFile.length; i++) {
+                if (this.allFile[i].id === idFile) {
+                    this.allFile[i].status = 'cancel';
+                    return;
+                }
+            };
+        },
+        continueUpload(idFile) {
+            for (let i = 0; i < this.allFile.length; i++) {
+                if (this.allFile[i].id === idFile) {
+                    this.allFile[i].status = 'upload';
+                    this.initializeUpload(file);
+                    return;
+                }
+            };
         },
         uploadChunk(formData, onProgress, onComplete) {
             const xhr = axios.create({
@@ -121,9 +151,11 @@ export default{
                 };
             };
             const uploadNextChunk = () => {
-                if (this.isPaused) {
-                    return;
-                }
+                for (let i = 0; i < this.allFile.length; i++) {
+                    if (this.allFile[i].id === idFile && (this.allFile[i].status === 'pause' || this.allFile[i].status === 'cancel')) {
+                        return;
+                    }
+                };
                 const start = (currentChunk - 1) * chunkSize;
                 const end = Math.min(currentChunk * chunkSize, file.size);
                 const chunk = file.slice(start, end);
@@ -181,7 +213,6 @@ export default{
         handleUploadFinished(){
             // const progressRef = this.$refs.progressRef;
             // // if(progressRef){
-            // //     this.validationFile('vdvsvav');
             // // }else{
             // // }
             // // return;

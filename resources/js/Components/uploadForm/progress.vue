@@ -23,40 +23,21 @@ export default{
     props: ['internalFile', 'progress'],
     data(){
         return{
-            file:[
-                //format
-                // id:id,
-                // file:'random.png',
-                // size:5MB,
-                // status:['upload' or 'done'],
-            ]
         }
     },
     methods:{
-        progressBar($data){
-            $this.percent = $data;
+        continueUpload() {
+            console.log('play for '+ this.internalFile.id);
+            this.$emit('continue-upload', this.internalFile.id);
         },
-        pauseUpload(idFile) {
-            const xhr = this.file[idFile]?.process;
-            if (xhr) {
-                xhr.abort();
-                this.$set(this.file, `status_${idFile}`, 'paused');
-            }
+        pauseUpload() {
+            console.log('pause for '+ this.internalFile.id);
+            this.$emit('pause-upload', this.internalFile.id);
         },
-        cancelUpload(idFile) {
-            // Get the XMLHttpRequest from the file array and abort it
-            const xhr = this.file[idFile]?.process;
-            if (xhr) {
-                xhr.abort();
-                this.$set(this.file, `status_${idFile}`, 'canceled');
-            }
-        },
-        startUpload() {
-            // Assume you have a server endpoint for handling resumable uploads
-            // Initialize the resumable upload for each file
-            this.files.forEach((file) => {
-                parent.initializeUpload(uploadUrl, file);
-            });
+        
+        cancelUpload() {
+            console.log('cancel for '+ this.internalFile.id);
+            this.$emit('cancel-upload', this.internalFile.id);
         },
     }
 }
