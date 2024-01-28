@@ -74,7 +74,8 @@ export default{
         },
         getFileData(file) {
             const fileData = { ...file };
-            delete fileData.xhr;
+            delete fileData.fileData;
+            delete fileData.process;
             return fileData;
         },
         validationFile(file){
@@ -89,10 +90,8 @@ export default{
             });
         },
         pauseUpload(idFile) {
-            console.log('incoming pause for id '+idFile);
             for (let i = 0; i < this.allFile.length; i++) {
                 if (this.allFile[i].id === idFile) {
-                    console.log('pause for id '+idFile);
                     this.allFile[i].status = 'pause';
                     return;
                 }
@@ -110,8 +109,9 @@ export default{
             for (let i = 0; i < this.allFile.length; i++) {
                 if (this.allFile[i].id === idFile) {
                     this.allFile[i].status = 'upload';
-                    this.initializeUpload(file);
-                    return;
+                    var chunk = this.allFile[i].process;
+                    var fileData = this.allFile[i].fileData;
+                    this.initializeUpload(fileData, idFile, chunk);
                 }
             };
         },
@@ -121,30 +121,25 @@ export default{
             });
             xhr.interceptors.request.use(config => {
                 config.onUploadProgress = event => {
-                const percent = (event.loaded / event.total) * 100;
-                onProgress(percent.toFixed(2));
+                    const percent = (event.loaded / event.total) * 100;
+                    onProgress(percent.toFixed(2));
                 };
                 return config;
             });
-            // Make the POST request
             xhr.post('/upload/file', formData).then(() => {
                 onComplete();
             }).catch(error => {
                 console.error('Error uploading:', error);
             });
         },
-        async initializeUpload(file,idFile) {
+        async initializeUpload(file,idFile, currentChunk = 0) {
             const chunkSize = 1024 * 1024;
             const totalChunks = Math.ceil(file.size / chunkSize);
-            let uploadedBytes = 0;
-            let currentChunk = 1;
-            const onProgress = (percent) => {
+            let uploadedBytes = currentChunk * chunkSize;
+            const onProgress = () => {
                 const overallProgress = ((uploadedBytes / file.size) * 100).toFixed(2);
-                // console.log(`progress overall: ${overallProgress}%`);
-                // console.log(this.allFile);
                 for (let i = 0; i < this.allFile.length; i++) {
                     if (this.allFile[i].id === idFile) {
-                        // console.log(`progress on file: ${overallProgress}%`);
                         this.allFile[i].progress = `${overallProgress}%`;
                         break;
                     }
@@ -152,8 +147,11 @@ export default{
             };
             const uploadNextChunk = () => {
                 for (let i = 0; i < this.allFile.length; i++) {
-                    if (this.allFile[i].id === idFile && (this.allFile[i].status === 'pause' || this.allFile[i].status === 'cancel')) {
-                        return;
+                    if (this.allFile[i].id === idFile){
+                        this.allFile[i].process = currentChunk;
+                        if(this.allFile[i].status === 'pause' || this.allFile[i].status === 'abort') {
+                            return;
+                        }
                     }
                 };
                 const start = (currentChunk - 1) * chunkSize;
@@ -200,12 +198,12 @@ export default{
                     // Success upload file
                     this.allFile.push({
                         id: resValidation.data.data.id,
-                        xhr:xhr,
+                        fileData:file,
                         name: file.name,
                         size:formatFileSize(file.size),
                         status: 'upload'
                     });
-                    var xhr = await this.initializeUpload(file,resValidation.data.data.id);
+                    this.initializeUpload(file,resValidation.data.data.id);
                 }
             });
             return Promise.all(uploadPromises);

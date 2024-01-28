@@ -27,16 +27,13 @@ export default{
     },
     methods:{
         continueUpload() {
-            console.log('play for '+ this.internalFile.id);
             this.$emit('continue-upload', this.internalFile.id);
         },
         pauseUpload() {
-            console.log('pause for '+ this.internalFile.id);
             this.$emit('pause-upload', this.internalFile.id);
         },
         
         cancelUpload() {
-            console.log('cancel for '+ this.internalFile.id);
             this.$emit('cancel-upload', this.internalFile.id);
         },
     }
