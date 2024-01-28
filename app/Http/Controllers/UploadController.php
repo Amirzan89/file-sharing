@@ -71,7 +71,11 @@ class uploadController extends Controller
         rmdir($directory);
     }
     protected function assembleChunks($directory,$fileName) {
-        $completeFilePath = storage_path("app/uploads/{$fileName}");
+        $completeFilePath = storage_path("app/uploads/");
+        if (!file_exists($completeFilePath)) {
+            mkdir($completeFilePath, 0777, true);
+        }
+        $completeFilePath .= $fileName;
         $completeFile = fopen($completeFilePath, 'w');
         for ($i = 1; $i <= count(glob("{$directory}/*.part")); $i++) {
             $chunkPath = "{$directory}/{$i}.part";

@@ -17,7 +17,7 @@
                     @upload-finished="handleUploadFinished"
                     @continue-upload="continueUpload"
                     @pause-upload="pauseUpload" 
-                    @cancel-upload="cancelUpload" 
+                    @cancel-upload="cancelUpload"
                 ></progressComponent>
             </template>
         </ul>
