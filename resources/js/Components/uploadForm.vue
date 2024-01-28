@@ -7,10 +7,9 @@
     </form>
     <div class="mt-12 h-2/4 w-5/6 mx-auto overflow-hidden flex flex-col text-black">
         <ul class="progress-area h-2/4 mb-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
-            <!-- <progressComponent ref="progressRef" @upload-finished="handleUploadFinished"></progressComponent> -->
             <template v-for="file in allFile">
                 <progressComponent
-                    v-if="file.status !== 'done'"
+                    v-if="file.status !== 'done' || file.status !== 'error'" 
                     :key="file.id"
                     :internalFile="getFileData(file)"
                     :progress="file.progress"
@@ -25,7 +24,7 @@
         <ul class="uploaded-area h-2/4 mt-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
             <template v-for="file in allFile">
                 <uploadComponent
-                    v-if="file.status === 'upload'"
+                    v-if="file.status === 'done' || file.status === 'error'"
                     :key="file.id"
                     :file-data="file"
                     :ref="'uploadRef_' + file.id"
@@ -89,6 +88,16 @@ export default{
                 return { status: 'error', message: err.response.data.message };
             });
         },
+        continueUpload(idFile) {
+            for (let i = 0; i < this.allFile.length; i++) {
+                if (this.allFile[i].id === idFile) {
+                    this.allFile[i].status = 'upload';
+                    var chunk = this.allFile[i].process;
+                    var fileData = this.allFile[i].fileData;
+                    this.initializeUpload(fileData, idFile, chunk);
+                }
+            };
+        },
         pauseUpload(idFile) {
             for (let i = 0; i < this.allFile.length; i++) {
                 if (this.allFile[i].id === idFile) {
@@ -100,18 +109,8 @@ export default{
         cancelUpload(idFile) {
             for (let i = 0; i < this.allFile.length; i++) {
                 if (this.allFile[i].id === idFile) {
-                    this.allFile[i].status = 'cancel';
+                    this.allFile.splice(i, 1);
                     return;
-                }
-            };
-        },
-        continueUpload(idFile) {
-            for (let i = 0; i < this.allFile.length; i++) {
-                if (this.allFile[i].id === idFile) {
-                    this.allFile[i].status = 'upload';
-                    var chunk = this.allFile[i].process;
-                    var fileData = this.allFile[i].fileData;
-                    this.initializeUpload(fileData, idFile, chunk);
                 }
             };
         },
@@ -149,7 +148,7 @@ export default{
                 for (let i = 0; i < this.allFile.length; i++) {
                     if (this.allFile[i].id === idFile){
                         this.allFile[i].process = currentChunk;
-                        if(this.allFile[i].status === 'pause' || this.allFile[i].status === 'abort') {
+                        if(this.allFile[i].status === 'pause' || this.allFile[i].status === 'cancel') {
                             return;
                         }
                     }

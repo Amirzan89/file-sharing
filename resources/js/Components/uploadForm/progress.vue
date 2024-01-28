@@ -12,8 +12,8 @@
             <span class="percent">{{ Math.floor(parseFloat(progress)) }}%</span>
         </div>
         <div class="controls absolute right-4 top-4 text-xl flex gap-2">
-            <i class="fa-solid fa-play cursor-pointer" @click="continueUpload()"></i>
-            <i class="fa-solid fa-pause cursor-pointer" @click="pauseUpload()"></i>
+            <i class="fa-solid fa-play cursor-pointer" v-if="internalFile.status === 'pause'" @click="continueUpload()"></i>
+            <i class="fa-solid fa-pause cursor-pointer" v-if="internalFile.status === 'upload'" @click="pauseUpload()"></i>
             <i class="fa-solid fa-x cursor-pointer" @click="cancelUpload()"></i>
         </div>
     </li>
