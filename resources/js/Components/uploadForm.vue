@@ -27,6 +27,7 @@
                     v-if="file.status === 'done' || file.status === 'error'"
                     :key="file.id"
                     :internalFile="getFileDone(file)"
+                    @delete-upload="deleteUpload"
                     :ref="'uploadRef_' + file.id"
                 ></uploadComponent>
             </template>
@@ -85,17 +86,6 @@ export default{
             delete fileData.progress;
             return fileData;
         },
-        validationFile(file){
-            return axios.post(this.domain + '/upload/validate', {
-                name: file.name,
-                format: file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2),
-                size: file.size,
-            }).then(function(res){
-                return { status: 'success', data: res.data };
-            }).catch(function(err){
-                return { status: 'error', message: err.response.data.message };
-            });
-        },
         continueUpload(idFile) {
             for (let i = 0; i < this.progressFiles.length; i++) {
                 if (this.progressFiles[i].id === idFile) {
@@ -117,10 +107,45 @@ export default{
         cancelUpload(idFile) {
             for (let i = 0; i < this.progressFiles.length; i++) {
                 if (this.progressFiles[i].id === idFile) {
-                    this.progressFiles.splice(i, 1);
-                    return;
+                    axios.delete(this.domain + '/upload/cancel', {
+                        data:{
+                            name: this.progressFiles[i].name,
+                            identifier: idFile,
+                        },
+                    }).then(function(res){
+                        this.progressFiles.splice(i, 1);
+                    }.bind(this)).catch(function(err){
+                        this.progressFiles.splice(i, 1);
+                    }.bind(this));
                 }
             };
+        },
+        deleteUpload(idFile) {
+            for (let i = 0; i < this.uploadedFiles.length; i++) {
+                if (this.uploadedFiles[i].id === idFile) {
+                    axios.delete(this.domain + '/upload/delete', {
+                        data:{
+                            name: this.uploadedFiles[i].name,
+                            identifier: idFile,
+                        },
+                    }).then(function(res){
+                        this.uploadedFiles.splice(i, 1);
+                    }.bind(this)).catch(function(err){
+                        console.log(err.response.data.message);
+                    }.bind(this));
+                }
+            };
+        },
+        validationFile(file){
+            return axios.post(this.domain + '/upload/validate', {
+                name: file.name,
+                format: file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2),
+                size: file.size,
+            }).then(function(res){
+                return { status: 'success', data: res.data };
+            }).catch(function(err){
+                return { status: 'error', message: err.response.data.message };
+            });
         },
         uploadChunk(formData, onProgress, onComplete) {
             const xhr = axios.create({
@@ -136,7 +161,7 @@ export default{
             xhr.post('/upload/file', formData).then(() => {
                 onComplete();
             }).catch(error => {
-                console.error('Error uploading:', error);
+                // console.error('Error uploading:', error);
             });
         },
         async initializeUpload(file,idFile, currentChunk = 0) {

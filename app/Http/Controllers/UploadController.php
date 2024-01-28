@@ -121,4 +121,45 @@ class uploadController extends Controller
         }
         return response()->json(['status'=>'success','message' => 'Chunk uploaded successfully']);
     }
+    public function cancelUpload(Request $request){
+        $validator = Validator::make($request->only('name','identifier'), [
+            'name'=>'required',
+            'identifier' => 'required|string',
+        ]);
+        if ($validator->fails()) {
+            $errors = [];
+            foreach ($validator->errors()->toArray() as $field => $errorMessages) {
+                $errors[$field] = $errorMessages[0];
+                break;
+            }
+            return response()->json(['status' => 'error', 'message' => implode(', ', $errors)], 400);
+        }
+        FileUpload::where('temp_id', $request->input('identifier'))->delete();
+        return response()->json(['status'=>'success','message' => 'Cancel Upload Success']);
+    }
+    public function deleteUpload(Request $request){
+        $validator = Validator::make($request->only('name','identifier'), [
+            'name'=>'required',
+            'identifier' => 'required|string',
+        ]);
+        if ($validator->fails()) {
+            $errors = [];
+            foreach ($validator->errors()->toArray() as $field => $errorMessages) {
+                $errors[$field] = $errorMessages[0];
+                break;
+            }
+            return response()->json(['status' => 'error', 'message' => implode(', ', $errors)], 400);
+        }
+        $identifier = $request->input('identifier');
+        $fileUpload = FileUpload::select('file_name')->where('temp_id', $identifier)->first();
+        if (!$fileUpload) {
+            return response()->json(['status' => 'error', 'message' => 'ID File not valid'], 400);
+        }
+        $path = storage_path("app/uploads/{$fileUpload->file_name}");
+        if (file_exists($path)) {
+            unlink($path);
+        }
+        FileUpload::where('temp_id', $identifier)->delete();
+        return response()->json(['status'=>'success','message' => 'Delete Upload Success']);
+    }
 }

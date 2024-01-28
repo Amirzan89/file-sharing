@@ -7,7 +7,7 @@
         </div>
         <div class="controls absolute right-3 text-2xl flex gap-3">
             <i class="fas fa-check"></i>
-            <i class="fa-solid fa-trash"></i>
+            <i class="fa-solid fa-trash cursor-pointer" @click="deleteUpload()"></i>
         </div>
     </li>
 </template>
@@ -20,7 +20,9 @@ export default{
         }
     },
     methods:{
-        //
+        deleteUpload() {
+            this.$emit('delete-upload', this.internalFile.id);
+        },
     }
 }
 </script>

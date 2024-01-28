@@ -20,6 +20,8 @@ Route::get('/login',function(){
 Route::group(['prefix'=>'/upload'],function(){
     Route::post('/file','UploadController@uploadChunk');
     Route::post('/validate','UploadController@validation');
+    Route::delete('/cancel','UploadController@cancelUpload');
+    Route::delete('/delete','UploadController@deleteUpload');
 });
 Route::get('/', function () {
     return view('welcome');
