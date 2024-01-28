@@ -136,7 +136,7 @@ export default{
             const totalChunks = Math.ceil(file.size / chunkSize);
             let uploadedBytes = currentChunk * chunkSize;
             const onProgress = () => {
-                const overallProgress = ((uploadedBytes / file.size) * 100).toFixed(2);
+                const overallProgress = Math.min((uploadedBytes / file.size) * 100, 100).toFixed(2);
                 for (let i = 0; i < this.allFile.length; i++) {
                     if (this.allFile[i].id === idFile) {
                         this.allFile[i].progress = `${overallProgress}%`;
@@ -199,6 +199,7 @@ export default{
                         id: resValidation.data.data.id,
                         fileData:file,
                         name: file.name,
+                        progress:'0%',
                         size:formatFileSize(file.size),
                         status: 'upload'
                     });
