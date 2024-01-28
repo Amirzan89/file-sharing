@@ -7,11 +7,11 @@
     </form>
     <div class="mt-12 h-2/4 w-5/6 mx-auto overflow-hidden flex flex-col text-black">
         <ul class="progress-area h-2/4 mb-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
-            <template v-for="file in allFile">
+            <template v-for="file in progressFiles">
                 <progressComponent
                     v-if="file.status !== 'done' || file.status !== 'error'" 
                     :key="file.id"
-                    :internalFile="getFileData(file)"
+                    :internalFile="getFileUpload(file)"
                     :progress="file.progress"
                     :ref="'progressRef_' + file.id"
                     @upload-finished="handleUploadFinished"
@@ -22,11 +22,11 @@
             </template>
         </ul>
         <ul class="uploaded-area h-2/4 mt-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
-            <template v-for="file in allFile">
+            <template v-for="file in uploadedFiles">
                 <uploadComponent
                     v-if="file.status === 'done' || file.status === 'error'"
                     :key="file.id"
-                    :file-data="file"
+                    :internalFile="getFileDone(file)"
                     :ref="'uploadRef_' + file.id"
                 ></uploadComponent>
             </template>
@@ -43,10 +43,11 @@ export default{
     },
     data(){
         return{
-            allFile:[
+            progressFiles:[],
+            uploadedFiles:[],
+            progressFiles:[
                 // {
                 //     format
-                //     xhr data for all progress
                 //     id:id,
                 //     file:'random.png',
                 //     size:size
@@ -71,10 +72,17 @@ export default{
             event.preventDefault();
             this.handleFiles(event.dataTransfer.files);
         },
-        getFileData(file) {
+        getFileUpload(file) {
             const fileData = { ...file };
             delete fileData.fileData;
             delete fileData.process;
+            return fileData;
+        },
+        getFileDone(file) {
+            const fileData = { ...file };
+            delete fileData.fileData;
+            delete fileData.process;
+            delete fileData.progress;
             return fileData;
         },
         validationFile(file){
@@ -89,27 +97,27 @@ export default{
             });
         },
         continueUpload(idFile) {
-            for (let i = 0; i < this.allFile.length; i++) {
-                if (this.allFile[i].id === idFile) {
-                    this.allFile[i].status = 'upload';
-                    var chunk = this.allFile[i].process;
-                    var fileData = this.allFile[i].fileData;
+            for (let i = 0; i < this.progressFiles.length; i++) {
+                if (this.progressFiles[i].id === idFile) {
+                    this.progressFiles[i].status = 'upload';
+                    var chunk = this.progressFiles[i].process;
+                    var fileData = this.progressFiles[i].fileData;
                     this.initializeUpload(fileData, idFile, chunk);
                 }
             };
         },
         pauseUpload(idFile) {
-            for (let i = 0; i < this.allFile.length; i++) {
-                if (this.allFile[i].id === idFile) {
-                    this.allFile[i].status = 'pause';
+            for (let i = 0; i < this.progressFiles.length; i++) {
+                if (this.progressFiles[i].id === idFile) {
+                    this.progressFiles[i].status = 'pause';
                     return;
                 }
             };
         },
         cancelUpload(idFile) {
-            for (let i = 0; i < this.allFile.length; i++) {
-                if (this.allFile[i].id === idFile) {
-                    this.allFile.splice(i, 1);
+            for (let i = 0; i < this.progressFiles.length; i++) {
+                if (this.progressFiles[i].id === idFile) {
+                    this.progressFiles.splice(i, 1);
                     return;
                 }
             };
@@ -137,18 +145,18 @@ export default{
             let uploadedBytes = currentChunk * chunkSize;
             const onProgress = () => {
                 const overallProgress = Math.min((uploadedBytes / file.size) * 100, 100).toFixed(2);
-                for (let i = 0; i < this.allFile.length; i++) {
-                    if (this.allFile[i].id === idFile) {
-                        this.allFile[i].progress = `${overallProgress}%`;
+                for (let i = 0; i < this.progressFiles.length; i++) {
+                    if (this.progressFiles[i].id === idFile) {
+                        this.progressFiles[i].progress = `${overallProgress}%`;
                         break;
                     }
                 };
             };
             const uploadNextChunk = () => {
-                for (let i = 0; i < this.allFile.length; i++) {
-                    if (this.allFile[i].id === idFile){
-                        this.allFile[i].process = currentChunk;
-                        if(this.allFile[i].status === 'pause' || this.allFile[i].status === 'cancel') {
+                for (let i = 0; i < this.progressFiles.length; i++) {
+                    if (this.progressFiles[i].id === idFile){
+                        this.progressFiles[i].process = currentChunk;
+                        if(this.progressFiles[i].status === 'pause' || this.progressFiles[i].status === 'cancel') {
                             return;
                         }
                     }
@@ -168,6 +176,14 @@ export default{
                         if (currentChunk <= totalChunks) {
                             resolve(uploadNextChunk());
                         } else {
+                            for (let i = 0; i < this.progressFiles.length; i++) {
+                                if (this.progressFiles[i].id === idFile) {
+                                    this.progressFiles[i].status = 'done';
+                                    const uploadedItem = this.progressFiles.splice(i, 1)[0];
+                                    this.uploadedFiles.push(uploadedItem);
+                                    return;
+                                }
+                            };
                             resolve();
                         }
                     });
@@ -195,7 +211,7 @@ export default{
                     console.log('file error');
                 } else {
                     // Success upload file
-                    this.allFile.push({
+                    this.progressFiles.push({
                         id: resValidation.data.data.id,
                         fileData:file,
                         name: file.name,
