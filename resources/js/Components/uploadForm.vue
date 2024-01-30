@@ -7,14 +7,10 @@
     </form>
     <div class="mt-12 h-2/4 w-5/6 mx-auto overflow-hidden flex flex-col text-black">
         <ul class="progress-area h-2/4 mb-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
-            <template v-for="file in progressFiles">
+            <template v-for="file in progressFiles" :key="file.id">
                 <progressComponent
-                    v-if="file.status !== 'done' || file.status !== 'error'" 
-                    :key="file.id"
                     :internalFile="getFileUpload(file)"
                     :progress="file.progress"
-                    :ref="'progressRef_' + file.id"
-                    @upload-finished="handleUploadFinished"
                     @continue-upload="continueUpload"
                     @pause-upload="pauseUpload" 
                     @cancel-upload="cancelUpload"
@@ -22,13 +18,12 @@
             </template>
         </ul>
         <ul class="uploaded-area h-2/4 mt-3 flex flex-col gap-2 overflow-y-scroll scrollbar-none scroll-behavior-smooth">
-            <template v-for="file in uploadedFiles">
+            <template v-for="file in uploadedFiles" :key="file.id">
                 <uploadComponent
-                    v-if="file.status === 'done' || file.status === 'error'"
-                    :key="file.id"
                     :internalFile="getFileDone(file)"
+                    @re-upload-validation="reUploadValidation"
+                    @re-upload="reUpload"
                     @delete-upload="deleteUpload"
-                    :ref="'uploadRef_' + file.id"
                 ></uploadComponent>
             </template>
         </ul>
@@ -54,6 +49,7 @@ export default{
                 //     size:size
                 //     progress:0%,
                 //     status:['upload' or 'done','pause','cancel'],
+                //     message:"" //if something error
                 // }
             ],
             domain: window.location.protocol + '//' + window.location.hostname + ':' + window.location.port,
@@ -81,10 +77,24 @@ export default{
         },
         getFileDone(file) {
             const fileData = { ...file };
-            delete fileData.fileData;
-            delete fileData.process;
-            delete fileData.progress;
             return fileData;
+        },
+        reUpload(idFile) {
+            for (let i = 0; i < this.uploadedFiles.length; i++) {
+                if (this.uploadedFiles[i].id === idFile) {
+                    this.uploadedFiles[i].status = 'upload';
+                    var chunk = this.uploadedFiles[i].process;
+                    var fileData = this.uploadedFiles[i].fileData;
+                    this.progressFiles.push(this.uploadedFiles.splice(i, 1)[0]);
+                    this.initializeUpload(fileData, idFile, chunk);
+                }
+            };
+        },
+        reUploadValidation(fileData) {
+            console.log('reupload again');
+            console.log(fileData)
+            //only when disconnected from server at validation
+            this.handleFiles(fileData);
         },
         continueUpload(idFile) {
             for (let i = 0; i < this.progressFiles.length; i++) {
@@ -131,12 +141,12 @@ export default{
                     }).then(function(res){
                         this.uploadedFiles.splice(i, 1);
                     }.bind(this)).catch(function(err){
-                        console.log(err.response.data.message);
                     }.bind(this));
                 }
             };
         },
         validationFile(file){
+            console.log('wayahe validation');
             return axios.post(this.domain + '/upload/validate', {
                 name: file.name,
                 format: file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2),
@@ -144,10 +154,10 @@ export default{
             }).then(function(res){
                 return { status: 'success', data: res.data };
             }).catch(function(err){
-                return { status: 'error', message: err.response.data.message };
+                return { status: 'error', message: err };
             });
         },
-        uploadChunk(formData, onProgress, onComplete) {
+        uploadChunk(formData, onProgress, onComplete, onError) {
             const xhr = axios.create({
                 baseURL: this.domain
             });
@@ -161,7 +171,7 @@ export default{
             xhr.post('/upload/file', formData).then(() => {
                 onComplete();
             }).catch(error => {
-                // console.error('Error uploading:', error);
+                onError(error);
             });
         },
         async initializeUpload(file,idFile, currentChunk = 0) {
@@ -195,7 +205,7 @@ export default{
                 formData.append('totalChunks', totalChunks);
                 formData.append('identifier', idFile);
                 return new Promise((resolve) => {
-                    this.uploadChunk(formData, onProgress, () => {
+                    this.uploadChunk(formData, onProgress, function(){
                         currentChunk++;
                         uploadedBytes += end - start;
                         if (currentChunk <= totalChunks) {
@@ -204,20 +214,46 @@ export default{
                             for (let i = 0; i < this.progressFiles.length; i++) {
                                 if (this.progressFiles[i].id === idFile) {
                                     this.progressFiles[i].status = 'done';
-                                    const uploadedItem = this.progressFiles.splice(i, 1)[0];
-                                    this.uploadedFiles.push(uploadedItem);
+                                    delete this.progressFiles[i].fileData;
+                                    delete this.progressFiles[i].process;
+                                    delete this.progressFiles[i].progress;
+                                    this.uploadedFiles.push(this.progressFiles.splice(i, 1)[0]);
                                     return;
                                 }
                             };
                             resolve();
                         }
-                    });
+                    }.bind(this),function(err){
+                            //error handling at upload
+                        if(err.response){
+                            for (let i = 0; i < this.progressFiles.length; i++) {
+                                if (this.progressFiles[i].id === idFile) {
+                                    this.progressFiles[i].status = 'error upload';
+                                    this.progressFiles[i].message = err.response.data.message;
+                                    this.uploadedFiles.push(this.progressFiles.splice(i, 1)[0]);
+                                    return;
+                                }
+                            };
+                            resolve();
+                        }else if(err.request){
+                            for (let i = 0; i < this.progressFiles.length; i++) {
+                                if (this.progressFiles[i].id === idFile) {
+                                    this.progressFiles[i].status = 'error upload';
+                                    this.progressFiles[i].message = 'Internet disconnected';
+                                    this.uploadedFiles.push(this.progressFiles.splice(i, 1)[0]);
+                                    return;
+                                }
+                            };
+                            resolve();
+                        }
+                    }.bind(this));
                 });
             };
             return uploadNextChunk();
         },
 
         async handleFiles(files) {
+            console.log('time to upload');
             const formatFileSize = function (bytes){
                 if (bytes < 1024) {
                     return bytes + ' B';
@@ -232,9 +268,27 @@ export default{
             const uploadPromises = Array.from(files).map(async (file) => {
                 const resValidation = await this.validationFile(file);
                 if (resValidation.status === 'error') {
-                    // Handle error
-                    console.log('file error');
-                } else {
+                    console.log('error at validation');
+                    //error handling at validation file
+                    var err = resValidation.message;
+                    if(err.response){
+                        this.uploadedFiles.push({
+                            name: file.name,
+                            message:err.response.data.message,
+                            status: 'error validation'
+                        });
+                        return;
+                    }else if(err.request){
+                        this.uploadedFiles.push({
+                            fileData:file,
+                            name: file.name,
+                            message:'Internet disconnected',
+                            status: 'error upload validation'
+                        });
+                        return;
+                    }
+                }else{
+                    console.log('success validation')
                     // Success upload file
                     this.progressFiles.push({
                         id: resValidation.data.data.id,
@@ -249,14 +303,6 @@ export default{
             });
             return Promise.all(uploadPromises);
         },
-        handleUploadFinished(){
-            // const progressRef = this.$refs.progressRef;
-            // // if(progressRef){
-            // // }else{
-            // // }
-            // // return;
-            //
-        }
     }
 }
 </script>

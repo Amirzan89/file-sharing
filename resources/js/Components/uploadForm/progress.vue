@@ -32,7 +32,6 @@ export default{
         pauseUpload() {
             this.$emit('pause-upload', this.internalFile.id);
         },
-        
         cancelUpload() {
             this.$emit('cancel-upload', this.internalFile.id);
         },

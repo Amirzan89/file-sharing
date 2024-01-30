@@ -50,12 +50,12 @@ class uploadController extends Controller
                 }
                 return response()->json(['status' => 'error', 'message' => implode(', ', $errors)], 400);
             }
-            // if(!in_array($request->input('format'),array_merge($this->extText, $this->extPDF, $this->extImage))){
-            //     return response()->json(['status'=>'error','message'=>'invalid format file'],400);
-            // }
-            // if($request->input('input') > $this->maxSize){
-            //     return response()->json(['status'=>'error','message'=>'File too large'],400);
-            // }
+            if(!in_array($request->input('format'),array_merge($this->extText, $this->extPDF, $this->extImage))){
+                return response()->json(['status'=>'error','message'=>'invalid format file'],400);
+            }
+            if($request->input('input') > $this->maxSize){
+                return response()->json(['status'=>'error','message'=>'File too large'],400);
+            }
             $id = Str::random(10);
             FileUpload::create(['temp_id' => $id,'file_name' => $request->input('name')]);
             return response()->json(['status'=>'success','message'=>'File valid','data'=>['id'=>$id]]);
