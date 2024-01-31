@@ -12,14 +12,14 @@
             </template>
             <template v-if="internalFile.status === 'error validation'">
                 <i class="fas fa-exclamation-circle"></i>
-                <i class="fa-solid fa-times cursor-pointer" @click="cancelUpload()"></i>
+                <i class="fa-solid fa-times cursor-pointer" @click="cancelValidation()"></i>
             </template>
             <template v-if="internalFile.status === 'error upload validation'">
                 <i class="fa-solid fa-repeat cursor-pointer" @click="reUploadValidation()"></i>
                 <i class="fas fa-times cursor-pointer" @click="cancelUpload()"></i>
             </template>
             <template v-if="internalFile.status === 'error upload'">
-                <i class="fa-solid fa-repeat cursor-pointer" @click="reUploadValidation()"></i>
+                <i class="fa-solid fa-repeat cursor-pointer" @click="reUpload()"></i>
                 <i class="fas fa-times cursor-pointer" @click="cancelUpload()"></i>
             </template>
         </div>
@@ -35,13 +35,16 @@ export default{
     },
     methods:{
         reUploadValidation() {
-            this.$emit('re-upload-validation', this.internalFile.fileData);
+            this.$emit('re-upload-validation', this.internalFile.fileData, this.internalFile.tempID);
         },
         reUpload(){
             this.$emit('re-upload', this.internalFile.id);
         },
         deleteUpload() {
             this.$emit('delete-upload', this.internalFile.id);
+        },
+        cancelValidation() {
+            this.$emit('cancel-validation', this.internalFile.tempID);
         },
     }
 }

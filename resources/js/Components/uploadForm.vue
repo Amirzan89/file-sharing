@@ -24,6 +24,7 @@
                     @re-upload-validation="reUploadValidation"
                     @re-upload="reUpload"
                     @delete-upload="deleteUpload"
+                    @cancel-validation="cancelValidation"
                 ></uploadComponent>
             </template>
         </ul>
@@ -79,22 +80,62 @@ export default{
             const fileData = { ...file };
             return fileData;
         },
-        reUpload(idFile) {
+        formatFileSize(bytes){
+            if (bytes < 1024) {
+                return bytes + ' B';
+            } else if (bytes < 1024 * 1024) {
+                return (bytes / 1024).toFixed(2) + ' KB';
+            } else if (bytes < 1024 * 1024 * 1024) {
+                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            } else {
+                return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+            }
+        },
+        reUpload(idFile){
             for (let i = 0; i < this.uploadedFiles.length; i++) {
                 if (this.uploadedFiles[i].id === idFile) {
-                    this.uploadedFiles[i].status = 'upload';
                     var chunk = this.uploadedFiles[i].process;
                     var fileData = this.uploadedFiles[i].fileData;
-                    this.progressFiles.push(this.uploadedFiles.splice(i, 1)[0]);
-                    this.initializeUpload(fileData, idFile, chunk);
+                    this.initializeUpload(fileData, idFile, chunk,'reupload');
                 }
             };
         },
-        reUploadValidation(fileData) {
-            console.log('reupload again');
-            console.log(fileData)
+        reUploadValidation(fileData, tempID) {
             //only when disconnected from server at validation
-            this.handleFiles(fileData);
+            this.validationFile(fileData).then((resValidation) => {
+                if (resValidation.status === 'error'){
+                    // error handling at validation file
+                    for (let i = 0; i < this.uploadedFiles.length; i++) {
+                        if (this.uploadedFiles[i].tempID === tempID) {
+                            var err = resValidation.message;
+                            if (err.response) {
+                                this.uploadedFiles[i].message = err.response.data.message;
+                                this.uploadedFiles[i].status = 'error validation';
+                            } else if (err.request) {
+                                this.uploadedFiles[i].message = 'Internet disconnected';
+                                this.uploadedFiles[i].status = 'error upload validation';
+                            }
+                        }
+                    }
+                }else{
+                    for (let i = 0; i < this.uploadedFiles.length; i++) {
+                        if (this.uploadedFiles[i].tempID === tempID) {
+                            // Success upload file
+                            this.uploadedFiles.splice(i, 1);
+                            this.progressFiles.push({
+                                id: resValidation.data.data.id,
+                                fileData: fileData,
+                                name: fileData.name,
+                                progress: '0%',
+                                size: this.formatFileSize(fileData.size),
+                                status: 'upload'
+                            });
+                            this.initializeUpload(fileData, resValidation.data.data.id);
+                            return;
+                        }
+                    };
+                }
+            });
         },
         continueUpload(idFile) {
             for (let i = 0; i < this.progressFiles.length; i++) {
@@ -106,10 +147,18 @@ export default{
                 }
             };
         },
-        pauseUpload(idFile) {
+        pauseUpload(idFile){
             for (let i = 0; i < this.progressFiles.length; i++) {
                 if (this.progressFiles[i].id === idFile) {
                     this.progressFiles[i].status = 'pause';
+                    return;
+                }
+            };
+        },
+        cancelValidation(tempID){
+            for (let i = 0; i < this.uploadedFiles.length; i++) {
+                if (this.uploadedFiles[i].tempID === tempID) {
+                    this.uploadedFiles.splice(i, 1);
                     return;
                 }
             };
@@ -146,7 +195,6 @@ export default{
             };
         },
         validationFile(file){
-            console.log('wayahe validation');
             return axios.post(this.domain + '/upload/validate', {
                 name: file.name,
                 format: file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2),
@@ -174,7 +222,7 @@ export default{
                 onError(error);
             });
         },
-        async initializeUpload(file,idFile, currentChunk = 0) {
+        async initializeUpload(file,idFile, currentChunk = 0, condition = null) {
             const chunkSize = 1024 * 1024;
             const totalChunks = Math.ceil(file.size / chunkSize);
             let uploadedBytes = currentChunk * chunkSize;
@@ -206,6 +254,14 @@ export default{
                 formData.append('identifier', idFile);
                 return new Promise((resolve) => {
                     this.uploadChunk(formData, onProgress, function(){
+                        if(condition === 'reupload'){
+                            for (let i = 0; i < this.uploadedFiles.length; i++) {
+                                if (this.uploadedFiles[i].id === idFile) {
+                                    this.uploadedFiles[i].status = 'upload';
+                                    this.progressFiles.push(this.uploadedFiles.splice(i, 1)[0]);
+                                }
+                            };
+                        }
                         currentChunk++;
                         uploadedBytes += end - start;
                         if (currentChunk <= totalChunks) {
@@ -224,7 +280,7 @@ export default{
                             resolve();
                         }
                     }.bind(this),function(err){
-                            //error handling at upload
+                        //error handling at upload
                         if(err.response){
                             for (let i = 0; i < this.progressFiles.length; i++) {
                                 if (this.progressFiles[i].id === idFile) {
@@ -253,22 +309,9 @@ export default{
         },
 
         async handleFiles(files) {
-            console.log('time to upload');
-            const formatFileSize = function (bytes){
-                if (bytes < 1024) {
-                    return bytes + ' B';
-                } else if (bytes < 1024 * 1024) {
-                    return (bytes / 1024).toFixed(2) + ' KB';
-                } else if (bytes < 1024 * 1024 * 1024) {
-                    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-                } else {
-                    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
-                }
-            };
             const uploadPromises = Array.from(files).map(async (file) => {
                 const resValidation = await this.validationFile(file);
                 if (resValidation.status === 'error') {
-                    console.log('error at validation');
                     //error handling at validation file
                     var err = resValidation.message;
                     if(err.response){
@@ -280,6 +323,7 @@ export default{
                         return;
                     }else if(err.request){
                         this.uploadedFiles.push({
+                            tempID: Math.floor(Math.random() * 100),
                             fileData:file,
                             name: file.name,
                             message:'Internet disconnected',
@@ -288,14 +332,13 @@ export default{
                         return;
                     }
                 }else{
-                    console.log('success validation')
                     // Success upload file
                     this.progressFiles.push({
                         id: resValidation.data.data.id,
                         fileData:file,
                         name: file.name,
                         progress:'0%',
-                        size:formatFileSize(file.size),
+                        size:this.formatFileSize(file.size),
                         status: 'upload'
                     });
                     this.initializeUpload(file,resValidation.data.data.id);
