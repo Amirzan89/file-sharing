@@ -38,7 +38,7 @@ class uploadController extends Controller
                 'format'=>'required',
                 'size'=>'required',
             ], [
-                'name.required' => 'Name File cannot be empty.',    
+                'name.required' => 'Name File cannot be empty.',
                 'format.required' => 'Format File cannot be empty.',    
                 'size.required' => 'Size File cannot be empty.',    
             ]);

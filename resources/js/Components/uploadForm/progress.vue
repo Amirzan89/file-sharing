@@ -20,6 +20,7 @@
 </template>
 <script>
 export default{
+    emits: ['handle-files', 'delete-files'],
     props: ['internalFile', 'progress'],
     data(){
         return{
