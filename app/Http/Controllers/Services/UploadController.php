@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers;
-use Exception;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Models\FileUpload;
 use Closure;
-use Carbon\Carbon;
+use Exception;
 class uploadController extends Controller
 {
     //max file size in byte
