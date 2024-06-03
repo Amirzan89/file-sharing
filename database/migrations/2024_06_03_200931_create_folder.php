@@ -8,13 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('verify', function (Blueprint $table) {
-            $table->id('id_veriy');
-            $table->string('email',45);
-            $table->string('code',6);
-            $table->string('link');
-            $table->enum('description',['password','email']);
-            $table->unsignedSmallInteger('send');
+        Schema::create('folder', function (Blueprint $table) {
+            $table->id('id_folder');
+            $table->uuid('uuid');
+            $table->string('name_folder',50);
             $table->timestamps();
             $table->unsignedBigInteger('id_user');
             $table->foreign('id_user')->references('id_user')->on('users')->onDelete('cascade');
@@ -23,6 +20,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('verify');
+        Schema::dropIfExists('folder');
     }
 };

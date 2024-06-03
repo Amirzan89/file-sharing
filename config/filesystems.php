@@ -29,6 +29,22 @@ return [
     */
 
     'disks' => [
+        'database' => [
+            'driver' => 'local',
+            'root' => storage_path('app/database'),
+            'throw' => false,
+        ],
+        'admin' => [
+            'driver' => 'local',
+            'root' => storage_path('app/admin'),
+            'throw' => false,
+        ],
+        'user' => [
+            'driver' => 'local',
+            'root' => storage_path('app/user'),
+            'throw' => false,
+        ],
+
         'temp' => [
             'driver' => 'local',
             'root' => storage_path('app/temp'),
