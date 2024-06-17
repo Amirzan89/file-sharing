@@ -1,5 +1,31 @@
+<template>
+    <template v-if="useNotFoundStore().isNotFound">
+        <NotFoundComponent/>
+    </template>
+    <template v-else>
+        <div class="layout-wrapper" :class="containerClass">
+            <app-topbar></app-topbar>
+            <div class="layout-sidebar">
+                <app-sidebar></app-sidebar>
+            </div>
+            <div class="layout-main-container">
+                <div class="layout-main">
+                    <slot/>
+                    <!-- <NuxtPage></NuxtPage> -->
+                </div>
+                <app-footer></app-footer>
+            </div>
+            <app-config></app-config>
+            <div class="layout-mask"></div>
+        </div>
+        <Toast />
+    </template>
+</template>
+<style lang="scss" scoped></style>
 <script setup>
 import { computed, watch, ref } from 'vue';
+import NotFoundComponent from '~/components/NotFound.vue';
+import { useNotFoundStore } from '~/store/NotFound';
 import AppTopbar from './AppTopbar.vue';
 import AppFooter from './AppFooter.vue';
 import AppSidebar from './AppSidebar.vue';
@@ -55,24 +81,3 @@ const isOutsideClicked = (event) => {
     return !(sidebarEl.isSameNode(event.target) || sidebarEl.contains(event.target) || topbarEl.isSameNode(event.target) || topbarEl.contains(event.target));
 };
 </script>
-
-<template>
-    <div class="layout-wrapper" :class="containerClass">
-        <app-topbar></app-topbar>
-        <div class="layout-sidebar">
-            <app-sidebar></app-sidebar>
-        </div>
-        <div class="layout-main-container">
-            <div class="layout-main">
-                <slot/>
-                <!-- <NuxtPage></NuxtPage> -->
-            </div>
-            <app-footer></app-footer>
-        </div>
-        <app-config></app-config>
-        <div class="layout-mask"></div>
-    </div>
-    <Toast />
-</template>
-
-<style lang="scss" scoped></style>

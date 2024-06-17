@@ -23,10 +23,10 @@ class JwtController extends Controller
         if(empty($email) || is_null($email)){
             return ['status'=>'error','message'=>'email empty'];
         }
-        if(!RefreshToken::select("email")->whereRaw("BINARY email = ? AND device = '$cond'",[$email])->limit(1)->exists()){
+        if(!RefreshToken::select("email")->whereRaw("BINARY email = ?",[$email])->limit(1)->exists()){
             return ['status'=>'error','message'=>'belum login','data'=>0];
         }
-        $result = json_decode(json_encode(RefreshToken::whereRaw("BINARY email = ? AND device = '$cond'",[$email])->count()));
+        $result = json_decode(json_encode(RefreshToken::whereRaw("BINARY email = ?",[$email])->count()));
         if(is_null($result) || empty($result) || $result <= 0){
             return ['status'=>'success','data'=>0];
         }
@@ -37,7 +37,7 @@ class JwtController extends Controller
         if(empty($token) || is_null($token)){
             return ['status'=>'error','message'=>'token empty'];
         }
-        return RefreshToken::select("email")->whereRaw("BINARY token = ? AND device = '$cond'",[$token])->limit(1)->exists();
+        return RefreshToken::select("email")->whereRaw("BINARY token = ?",[$token])->limit(1)->exists();
     }
     //get refresh token from database
     public function getRefreshWebsite(Request $request,Response $response){
@@ -90,11 +90,11 @@ class JwtController extends Controller
             $secretKey = env('JWT_SECRET');
             $secretRefreshKey = env('JWT_SECRET_REFRESH_TOKEN');
             if($number['data'] >= 3){
-                if(!DB::table('refresh_token')->whereRaw("BINARY email = ? AND device = 'website' AND number = 1",[$email])->delete()){
+                if(!DB::table('refresh_token')->whereRaw("BINARY email = ? AND number = 1",[$email])->delete()){
                     return ['status'=>'error','message'=>'error delete old refresh token', 'code'=>500];
                 }
                 for($i = 1; $i <= 3; $i++){
-                    DB::table('refresh_token')->whereRaw("BINARY email = ? AND device = 'website' AND number = $i",[$email])->update(['number'=>$i-1]);
+                    DB::table('refresh_token')->whereRaw("BINARY email = ? AND number = $i",[$email])->update(['number'=>$i-1]);
                 }
                 $userData['number'] = 3;
                 $payloadRefresh = ['data' => $userData, 'exp' => $expRefresh];
@@ -103,7 +103,6 @@ class JwtController extends Controller
                 $token = JWT::encode($payload, $secretKey,'HS512');
                 $refreshToken->email = $email;
                 $refreshToken->token = $Rtoken;
-                $refreshToken->device = 'website';
                 $refreshToken->number = 3;
                 $refreshToken->id_user = $idUser;
                 if(!$refreshToken->save()){
@@ -116,7 +115,6 @@ class JwtController extends Controller
             //if user has not login
             }else{
                 $refreshToken->email = $email;
-                $refreshToken->device = 'website';
                 $refreshToken->id_user = $idUser;
                 $number = $this->checkTotalLogin(['email'=>$email], 'website');
                 if($number['status'] == 'error'){
@@ -158,68 +156,7 @@ class JwtController extends Controller
             return ['status'=>'error','message'=>$e->getMessage()];
         }
     }
-    public function createJWTMobile($email, RefreshToken $refreshToken){
-        try{
-            $userData = User::select()->whereRaw("BINARY email = ?",[$email])->first();
-            if ($userData === null){
-                return ['status'=>'error','messsage'=>'email not found','code'=>400];
-            }
-            //check total login on mobile
-            $number = $this->checkTotalLogin(['email'=>$email], 'mobile');
-            $idUser = $userData['id_user'];
-            unset($userData['id_user']);
-            unset($userData['password']);
-            $exp = time() + intval(env('JWT_MOBILE_ACCESS_TOKEN_EXPIRED'));
-            $secretKey = env('JWT_SECRET_MOBILE');
-            if($number['data'] >= 2){
-                if(!DB::table('refresh_token')->whereRaw("BINARY email = ? AND device = 'mobile' AND number = 1",[$email])->delete()){
-                    return ['status'=>'error','message'=>'error delete old refresh token', 'code'=>500];
-                }
-                for($i = 1; $i <= 2; $i++){
-                    DB::table('refresh_token')->whereRaw("BINARY email = ? AND device = 'mobile' AND number = $i",[$email])->update(['number'=>$i-1]);
-                }
-                $userData['number'] = 2;
-                $payload = ['data' => $userData, 'exp' => $exp];
-                $token = JWT::encode($payload, $secretKey,'HS512');
-                $refreshToken->email = $email;
-                $refreshToken->token = $token;
-                $refreshToken->device = 'mobile';
-                $refreshToken->number = 2;
-                $refreshToken->id_user = $idUser;
-                if(!$refreshToken->save()){
-                    return ['status'=>'error','message'=>'error saving token','code'=>500];
-                }
-                return ['status' => 'success','data' => $token,'number'=>3];
-            //if user has not login
-            }else{
-                $refreshToken->email = $email;
-                $refreshToken->device = 'mobile';
-                $refreshToken->id_user = $idUser;
-                $number = $this->checkTotalLogin(['email'=>$email], 'mobile');
-                if($number['status'] == 'error'){
-                    $userData['number'] = 1;
-                    $payload = [ 'data' => $userData,'exp' => $exp];
-                    $token = JWT::encode($payload, $secretKey,'HS512');
-                    $refreshToken->number = 1;
-                    $refreshToken->token = $token;
-                    $json = ['status' => 'success', 'data' => $token,'number' => 1];
-                }else{
-                    $userData['number'] = $number['data'] + 1;
-                    $payload = [ 'data' => $userData, 'exp' => $exp];
-                    $token = JWT::encode($payload, $secretKey,'HS512');
-                    $refreshToken->token = $token;
-                    $refreshToken->number = $number['data'] + 1;
-                    $json = ['status' => 'success', 'data' => $token,'number' => $number['data'] + 1];
-                }
-                if(!$refreshToken->save()){
-                    return ['status'=>'error','message'=>'error saving token','code'=>500];
-                }
-                return $json;
-            }
-        }catch(UnexpectedValueException  $e){
-            return ['status'=>'error','message'=>$e->getMessage()];
-        }
-    }
+
     //decode token website
     public function decode($data){
         try{
@@ -251,26 +188,6 @@ class JwtController extends Controller
                     return ['status'=>'error','message'=>'invalid data'];
                 }
             }
-        }catch(ExpiredException $e){
-            return ['status'=>'error','message'=>$e->getMessage()];
-        } catch (SignatureInvalidException $e) {
-            return ['status'=>'error','message'=>$e->getMessage()];
-        } catch (BeforeValidException $e) {
-            return ['status'=>'error','message'=>$e->getMessage()];
-        }catch(UnexpectedValueException $e){
-            return ['status'=>'error','message'=>$e->getMessage()];
-        } catch (InvalidArgumentException $e) {
-            return ['status'=>'error','message'=>$e->getMessage()];
-        } catch (DomainException $e) {
-            return ['status'=>'error','message'=>$e->getMessage()];
-        } catch (\Exception $e) {
-            return ['status'=>'error','message'=>$e->getMessage()];
-        }
-    }
-    //decode token mobile
-    public function decodeMobile($token){
-        try{
-            return ['status'=>'success','data'=>json_decode(json_encode(JWT::decode($token, new Key(env('JWT_SECRET_MOBILE'), 'HS512'))), true)];
         }catch(ExpiredException $e){
             return ['status'=>'error','message'=>$e->getMessage()];
         } catch (SignatureInvalidException $e) {
@@ -332,15 +249,12 @@ class JwtController extends Controller
                 return ['status'=>'error','message'=>'email empty','code'=>400];
             }
             if($number == null){
-                if($number == null && $cond == 'mobile'){
-                    return ['status'=>'error','message'=>'failed delete refresh token','code'=>500];
-                }
-                if(!DB::table('refresh_token')->whereRaw("BINARY email = ? AND device = 'website'",[$email])->delete()){
+                if(!DB::table('refresh_token')->whereRaw("BINARY email = ?",[$email])->delete()){
                     return ['status'=>'error','message'=>'failed delete refresh token','code'=>500];
                 }
                 return ['status'=>'success','message'=>'success delete refresh token','code'=>200];
             }else{
-                if(!DB::table('refresh_token')->whereRaw("BINARY email = ? AND number = $number AND device = '$cond'", [$email])->delete()){
+                if(!DB::table('refresh_token')->whereRaw("BINARY email = ? AND number = $number", [$email])->delete()){
                     return ['status'=>'error','message'=>'failed delete refresh token','code'=>500];
                 }
                 return ['status'=>'success','message'=>'success delete refresh token','code'=>200];
