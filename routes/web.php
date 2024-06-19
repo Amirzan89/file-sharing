@@ -1,6 +1,6 @@
 <?php
 use Illuminate\Support\Facades\Route;
-use App\http\Controllers\UploadController;
+use Illuminate\Http\Request;
 
 Route::get('/pond',function(){
     return view('uploadPond');
@@ -14,8 +14,17 @@ Route::get('/upload1_old',function(){
 Route::get('/upload2',function(){
     return view('upload2');
 });
-Route::get('/login',function(){
+Route::get('/login',function(Request $request){
+    if($request->wantsJson()){
+        return response()->json(['status' => 'success', 'message' => 'OK']);
+    }
     return view('login');
+});
+Route::get('/register',function(Request $request){
+    if($request->wantsJson()){
+        return response()->json(['status' => 'success', 'message' => 'OK']);
+    }
+    return view('register');
 });
 Route::group(['prefix'=>'/upload'],function(){
     Route::post('/file','UploadController@uploadChunk');
