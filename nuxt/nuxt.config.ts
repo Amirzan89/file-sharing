@@ -11,6 +11,9 @@ export default defineNuxtConfig({
             baseURL: process.env.APP_URL,
             appName: process.env.APP_NAME,
         },
+        private: {
+            midtransClientKey:'SB-Mid-client-W6KCWpOgXhqrUdkQ',
+        }
     },
     ssr: false,
     css: [

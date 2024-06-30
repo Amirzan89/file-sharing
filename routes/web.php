@@ -14,6 +14,11 @@ Route::get('/upload1_old',function(){
 Route::get('/upload2',function(){
     return view('upload2');
 });
+Route::group(['prefix'=>'/transaksi'], function(){
+    Route::post('/midtrans/notify','Services\TransaksiController@createTransaksi');
+    Route::post('/cancel','Services\TransaksiController@cancel');
+    Route::post('/stop','Services\TransaksiController@stop');
+});
 Route::get('/login',function(Request $request){
     if($request->wantsJson()){
         return response()->json(['status' => 'success', 'message' => 'OK']);

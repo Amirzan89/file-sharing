@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('folder', function (Blueprint $table) {
             $table->id('id_folder');
             $table->uuid('uuid');
-            $table->string('name_folder',50);
+            $table->string('name',50);
+            $table->string('parent_id',50);
             $table->timestamps();
             $table->unsignedBigInteger('id_user');
             $table->foreign('id_user')->references('id_user')->on('users')->onDelete('cascade');

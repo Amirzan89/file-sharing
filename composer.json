@@ -12,6 +12,7 @@
         "laravel/sanctum": "^3.2",
         "laravel/tinker": "^2.8",
         "lcobucci/jwt": "^4.3",
+        "midtrans/midtrans-php": "^2.5",
         "predis/predis": "^2.2",
         "tymon/jwt-auth": "^2.1"
     },
